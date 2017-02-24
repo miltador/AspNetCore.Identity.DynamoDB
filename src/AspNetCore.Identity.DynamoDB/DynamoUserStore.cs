@@ -850,10 +850,11 @@ namespace AspNetCore.Identity.DynamoDB
             {
                 active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
-                if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE))
-                    active = false;
-                if (!response.Table.GlobalSecondaryIndexes.TrueForAll(g => g.IndexStatus.Equals(IndexStatus.ACTIVE)))
-                    active = false;
+	            if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
+	                response.Table.GlobalSecondaryIndexes.Any(g => !Equals(g.IndexStatus, IndexStatus.ACTIVE)))
+	            {
+		            active = false;
+	            }
 
                 Thread.Sleep(TimeSpan.FromSeconds(5));
             } while (!active);
