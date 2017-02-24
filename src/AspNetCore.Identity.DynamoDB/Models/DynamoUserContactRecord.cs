@@ -1,4 +1,6 @@
 ﻿using System;
+using Amazon.DynamoDBv2.DataModel;
+using AspNetCore.Identity.DynamoDB.Converters;
 
 namespace AspNetCore.Identity.DynamoDB.Models
 {
@@ -17,21 +19,22 @@ namespace AspNetCore.Identity.DynamoDB.Models
         }
 
         public string Value { get; set; }
-        public DateTime ConfirmedOn { get; set; }
+	    [DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+        public DateTimeOffset ConfirmedOn { get; set; }
 
         public bool IsConfirmed()
         {
-            return ConfirmedOn != default(DateTime);
+            return ConfirmedOn != default(DateTimeOffset);
         }
 
         public void SetConfirmed()
         {
-            SetConfirmed(DateTime.Now);
+            SetConfirmed(DateTimeOffset.Now);
         }
 
-        public void SetConfirmed(DateTime confirmationTime)
+        public void SetConfirmed(DateTimeOffset confirmationTime)
         {
-            if (ConfirmedOn == default(DateTime))
+            if (ConfirmedOn == default(DateTimeOffset))
             {
                 ConfirmedOn = confirmationTime;
             }
@@ -39,7 +42,7 @@ namespace AspNetCore.Identity.DynamoDB.Models
 
         public void SetUnconfirmed()
         {
-            ConfirmedOn = default(DateTime);
+            ConfirmedOn = default(DateTimeOffset);
         }
 
         public bool Equals(DynamoUserEmail other)

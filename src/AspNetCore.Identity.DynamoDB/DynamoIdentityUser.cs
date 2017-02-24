@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using Amazon.DynamoDBv2.DataModel;
+using AspNetCore.Identity.DynamoDB.Converters;
 using AspNetCore.Identity.DynamoDB.Models;
 using Microsoft.AspNetCore.Identity;
 
@@ -45,7 +46,7 @@ namespace AspNetCore.Identity.DynamoDB
 
             UserName = userName;
             Id = Guid.NewGuid().ToString();
-            CreatedOn = DateTime.Now;
+            CreatedOn = DateTimeOffset.Now;
         }
 
         [DynamoDBHashKey]
@@ -69,10 +70,13 @@ namespace AspNetCore.Identity.DynamoDB
 
         public int AccessFailedCount { get; set; }
         public bool IsLockoutEnabled { get; set; }
-        public DateTime LockoutEndDate { get; set; }
+	    [DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+        public DateTimeOffset LockoutEndDate { get; set; }
 
-        public DateTime CreatedOn { get; set; }
-        public DateTime DeletedOn { get; set; }
+	    [DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+        public DateTimeOffset CreatedOn { get; set; }
+	    [DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+        public DateTimeOffset DeletedOn { get; set; }
 
         [DynamoDBVersion]
         public int? VersionNumber { get; set; }
@@ -149,7 +153,7 @@ namespace AspNetCore.Identity.DynamoDB
             AccessFailedCount = 0;
         }
 
-        public virtual void LockUntil(DateTime lockoutEndDate)
+        public virtual void LockUntil(DateTimeOffset lockoutEndDate)
         {
             LockoutEndDate = lockoutEndDate;
         }
@@ -214,12 +218,12 @@ namespace AspNetCore.Identity.DynamoDB
 
         public void Delete()
         {
-            if (DeletedOn != default(DateTime))
+            if (DeletedOn != default(DateTimeOffset))
             {
                 throw new InvalidOperationException($"User '{Id}' has already been deleted.");
             }
 
-            DeletedOn = DateTime.Now;
+            DeletedOn = DateTimeOffset.Now;
         }
     }
 }

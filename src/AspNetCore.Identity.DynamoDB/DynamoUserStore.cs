@@ -92,8 +92,8 @@ namespace AspNetCore.Identity.DynamoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var user = await _context.LoadAsync<TUser>(userId, default(DateTime), cancellationToken);
-            return user.DeletedOn != default(DateTime) ? user : null;
+            var user = await _context.LoadAsync<TUser>(userId, default(DateTimeOffset), cancellationToken);
+            return user.DeletedOn == default(DateTimeOffset) ? user : null;
         }
 
         public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
@@ -105,7 +105,7 @@ namespace AspNetCore.Identity.DynamoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var user = await _context.LoadAsync<TUser>(normalizedUserName, default(DateTime), new DynamoDBOperationConfig
+            var user = await _context.LoadAsync<TUser>(normalizedUserName, default(DateTimeOffset), new DynamoDBOperationConfig
             {
                 IndexName = "NormalizedUserName-DeletedOn-index"
             }, cancellationToken);
@@ -260,9 +260,8 @@ namespace AspNetCore.Identity.DynamoDB
                 new ScanCondition("LoginProviderKeys", ScanOperator.Contains, providerKey)
             });
             // well, we guarantee that there will be only one record so the scan will not be so expensive
-            var users = await usersSearch.GetNextSetAsync(cancellationToken);
-            var user = users.FirstOrDefault();
-            return user?.DeletedOn == default(DateTime) ? user : null;
+            var users = await usersSearch.GetRemainingAsync(cancellationToken);
+            return users.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
         }
 
         public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
@@ -354,7 +353,7 @@ namespace AspNetCore.Identity.DynamoDB
             });
             var users = await usersSearch.GetRemainingAsync(cancellationToken);
 
-            return users.Where(u => u.DeletedOn == default(DateTime)).ToList();
+            return users.Where(u => u.DeletedOn == default(DateTimeOffset)).ToList();
         }
 
         public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
@@ -522,7 +521,7 @@ namespace AspNetCore.Identity.DynamoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var user = await _context.LoadAsync<TUser>(normalizedEmail, default(DateTime), new DynamoDBOperationConfig
+            var user = await _context.LoadAsync<TUser>(normalizedEmail, default(DateTimeOffset), new DynamoDBOperationConfig
             {
                 IndexName = "Email.NormalizedValue-DeletedOn-index"
             }, cancellationToken);
@@ -581,7 +580,7 @@ namespace AspNetCore.Identity.DynamoDB
 
             if(lockoutEnd != null)
             {
-                user.LockUntil(lockoutEnd.Value.UtcDateTime);
+                user.LockUntil(lockoutEnd.Value);
             }
 
             return Task.FromResult(0);
