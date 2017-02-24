@@ -3,6 +3,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using AspNetCore.Identity.DynamoDB.Extensions;
 using AspNetCore.Identity.DynamoDB.Tests.Common;
 using Microsoft.AspNetCore.Identity;
 using Xunit;
@@ -21,8 +22,10 @@ namespace AspNetCore.Identity.DynamoDB.Tests
             var displayName = TestUtils.RandomString(5);
             var myCustomThing = TestUtils.RandomString(10);
             var user = new MyIdentityUser(username) { MyCustomThing = myCustomThing };
-            user.AddClaim(new Claim(ClaimTypes.Country, countryName));
-            user.AddLogin(new UserLoginInfo(loginProvider, providerKey, displayName));
+	        var claim = new Claim(ClaimTypes.Country, countryName);
+            user.AddClaim(claim);
+	        var login = new UserLoginInfo(loginProvider, providerKey, displayName);
+            user.AddLogin(login);
 
             using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
@@ -46,6 +49,23 @@ namespace AspNetCore.Identity.DynamoDB.Tests
                 Assert.NotNull(retrievedLoginProvider);
                 Assert.Equal(providerKey, retrievedLoginProvider.ProviderKey);
                 Assert.Equal(displayName, retrievedLoginProvider.ProviderDisplayName);
+
+	            var userByLogin = await store.FindByLoginAsync(loginProvider, providerKey, CancellationToken.None);
+	            Assert.NotNull(userByLogin);
+	            var retrivedLogins = userByLogin.GetLogins();
+	            Assert.NotEmpty(retrivedLogins);
+	            Assert.True(retrivedLogins[0].EqualsTo(login));
+
+	            var usersForClaims = await store.GetUsersForClaimAsync(claim, CancellationToken.None);
+	            Assert.NotNull(usersForClaims);
+	            Assert.NotEmpty(usersForClaims);
+	            var userByClaim = usersForClaims[0];
+	            Assert.NotNull(userByClaim);
+	            var userClaims = userByClaim.GetClaims();
+	            Assert.NotNull(userClaims);
+	            Assert.NotEmpty(userClaims);
+	            Assert.Equal(userClaims[0].Type, claim.Type);
+	            Assert.Equal(userClaims[0].Value, claim.Value);
             }
         }
 
