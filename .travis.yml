@@ -31,7 +31,7 @@ before_script:
 - export PATH=$PATH:$HOME/.local/bin
 - mono --version
 - dotnet --info
-- docker run -d -p 8000:8000 dwmkerr/dynamodb
+- docker run -d -p 8000:8000 dwmkerr/dynamodb -inMemory
 - docker ps -a
 script:
 - ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=RELEASE --outputFolder=./artifacts --pack
