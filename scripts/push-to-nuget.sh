@@ -35,17 +35,17 @@ nuGetVersion="3.2.0"
 nuGetUrl="https://dist.nuget.org/win-x86-commandline/v$nuGetVersion/nuget.exe"
 nugetExeDirPath=${rootDir%%/}/.nuget
 nugetExePath=${nugetExeDirPath%%/}/nuget.exe
-nugetPackagePath=$(find ./artifacts/ -regextype posix-extended -regex ".*MongoDB.$VERSION.nupkg")
+nugetPackagePath=$(find ./artifacts/ -regextype posix-extended -regex ".*DynamoDB.$VERSION.nupkg")
 
 if [ ! -f "$nugetExePath" ]
 then
     if [ ! -d "$nugetExeDirPath" ]
     then
-        mkdir $nugetExeDirPath || exit 1  
+        mkdir $nugetExeDirPath || exit 1
     fi
 
     echo "downloading '$nuGetUrl' into '$nugetExePath'..."
-    curl -L -o $nugetExePath $nuGetUrl | tac || exit 1  
+    curl -L -o $nugetExePath $nuGetUrl | tac || exit 1
 fi
 
 echo "pushing $nugetPackagePath to NuGet.org..."

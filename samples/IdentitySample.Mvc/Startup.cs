@@ -10,18 +10,19 @@ using Microsoft.AspNetCore.Identity;
 using System.IO;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
-using MongoDB.Driver;
-using AspNetCore.Identity.MongoDB;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
+using AspNetCore.Identity.DynamoDB;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace IdentitySample
 {
-    public class MongoDbSettings 
+    public class DynamoDbSettings
     {
-        public string ConnectionString { get; set; }
-        public string DatabaseName { get; set; }
+        public string ServiceUrl { get; set; }
+        public string TableName { get; set; }
     }
 
     public class Startup
@@ -54,14 +55,18 @@ namespace IdentitySample
         /// </summary>
         public void ConfigureServices(IServiceCollection services)
         {
-            services.Configure<MongoDbSettings>(Configuration.GetSection("MongoDb"));
-            services.AddSingleton<IUserStore<MongoIdentityUser>>(provider =>
+            services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
+            services.AddSingleton<IUserStore<DynamoIdentityUser>>(provider =>
             {
-                var options = provider.GetService<IOptions<MongoDbSettings>>();
-                var client = new MongoClient(options.Value.ConnectionString);
-                var database = client.GetDatabase(options.Value.DatabaseName);
+                var options = provider.GetService<IOptions<DynamoDbSettings>>();
+                var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
+                {
+                    ServiceURL = options.Value.ServiceUrl,
+                    UseHttp = true
+                });
+                var context = new DynamoDBContext(client);
 
-                return new MongoUserStore<MongoIdentityUser>(database);
+                return new DynamoUserStore<DynamoIdentityUser>(client, context, options.Value.TableName);
             });
 
             services.Configure<IdentityOptions>(options =>
@@ -86,15 +91,15 @@ namespace IdentitySample
             services.AddDataProtection();
 
             services.TryAddSingleton<IdentityMarkerService>();
-            services.TryAddSingleton<IUserValidator<MongoIdentityUser>, UserValidator<MongoIdentityUser>>();
-            services.TryAddSingleton<IPasswordValidator<MongoIdentityUser>, PasswordValidator<MongoIdentityUser>>();
-            services.TryAddSingleton<IPasswordHasher<MongoIdentityUser>, PasswordHasher<MongoIdentityUser>>();
+            services.TryAddSingleton<IUserValidator<DynamoIdentityUser>, UserValidator<DynamoIdentityUser>>();
+            services.TryAddSingleton<IPasswordValidator<DynamoIdentityUser>, PasswordValidator<DynamoIdentityUser>>();
+            services.TryAddSingleton<IPasswordHasher<DynamoIdentityUser>, PasswordHasher<DynamoIdentityUser>>();
             services.TryAddSingleton<ILookupNormalizer, UpperInvariantLookupNormalizer>();
             services.TryAddSingleton<IdentityErrorDescriber>();
-            services.TryAddSingleton<ISecurityStampValidator, SecurityStampValidator<MongoIdentityUser>>();
-            services.TryAddSingleton<IUserClaimsPrincipalFactory<MongoIdentityUser>, UserClaimsPrincipalFactory<MongoIdentityUser>>();
-            services.TryAddSingleton<UserManager<MongoIdentityUser>, UserManager<MongoIdentityUser>>();
-            services.TryAddScoped<SignInManager<MongoIdentityUser>, SignInManager<MongoIdentityUser>>();
+            services.TryAddSingleton<ISecurityStampValidator, SecurityStampValidator<DynamoIdentityUser>>();
+            services.TryAddSingleton<IUserClaimsPrincipalFactory<DynamoIdentityUser>, UserClaimsPrincipalFactory<DynamoIdentityUser>>();
+            services.TryAddSingleton<UserManager<DynamoIdentityUser>, UserManager<DynamoIdentityUser>>();
+            services.TryAddScoped<SignInManager<DynamoIdentityUser>, SignInManager<DynamoIdentityUser>>();
 
             AddDefaultTokenProviders(services);
 
@@ -131,8 +136,8 @@ namespace IdentitySample
                })
                 .UseGoogleAuthentication(new GoogleOptions
                 {
-                    ClientId = "514485782433-fr3ml6sq0imvhi8a7qir0nb46oumtgn9.apps.googleusercontent.com",
-                    ClientSecret = "V2nDD9SkFbvLTqAUBWBBxYAL"
+                    ClientId = "609695036148-vacck6ur8cf5sk0uv145pa962qfsdk6c.apps.googleusercontent.com",
+                    ClientSecret = "VqJhjh9w_tvSahjzeOkWzv3n"
                 })
                 .UseTwitterAuthentication(new TwitterOptions
                 {
@@ -150,9 +155,9 @@ namespace IdentitySample
 
         private void AddDefaultTokenProviders(IServiceCollection services)
         {
-            var dataProtectionProviderType = typeof(DataProtectorTokenProvider<>).MakeGenericType(typeof(MongoIdentityUser));
-            var phoneNumberProviderType = typeof(PhoneNumberTokenProvider<>).MakeGenericType(typeof(MongoIdentityUser));
-            var emailTokenProviderType = typeof(EmailTokenProvider<>).MakeGenericType(typeof(MongoIdentityUser));
+            var dataProtectionProviderType = typeof(DataProtectorTokenProvider<>).MakeGenericType(typeof(DynamoIdentityUser));
+            var phoneNumberProviderType = typeof(PhoneNumberTokenProvider<>).MakeGenericType(typeof(DynamoIdentityUser));
+            var emailTokenProviderType = typeof(EmailTokenProvider<>).MakeGenericType(typeof(DynamoIdentityUser));
             AddTokenProvider(services, TokenOptions.DefaultProvider, dataProtectionProviderType);
             AddTokenProvider(services, TokenOptions.DefaultEmailProvider, emailTokenProviderType);
             AddTokenProvider(services, TokenOptions.DefaultPhoneProvider, phoneNumberProviderType);

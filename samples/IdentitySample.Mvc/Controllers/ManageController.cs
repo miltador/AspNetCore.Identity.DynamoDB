@@ -1,12 +1,12 @@
 using System.Linq;
 using System.Threading.Tasks;
+using AspNetCore.Identity.DynamoDB;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using IdentitySample.Models.ManageViewModels;
 using IdentitySample.Services;
-using AspNetCore.Identity.MongoDB;
 
 namespace IdentitySamples.Controllers
 {
@@ -14,15 +14,15 @@ namespace IdentitySamples.Controllers
     [Authorize]
     public class ManageController : Controller
     {
-        private readonly UserManager<MongoIdentityUser> _userManager;
-        private readonly SignInManager<MongoIdentityUser> _signInManager;
+        private readonly UserManager<DynamoIdentityUser> _userManager;
+        private readonly SignInManager<DynamoIdentityUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly ISmsSender _smsSender;
         private readonly ILogger _logger;
 
         public ManageController(
-        UserManager<MongoIdentityUser> userManager,
-        SignInManager<MongoIdentityUser> signInManager,
+        UserManager<DynamoIdentityUser> userManager,
+        SignInManager<DynamoIdentityUser> signInManager,
         IEmailSender emailSender,
         ISmsSender smsSender,
         ILoggerFactory loggerFactory)
@@ -336,7 +336,7 @@ namespace IdentitySamples.Controllers
             Error
         }
 
-        private Task<MongoIdentityUser> GetCurrentUserAsync()
+        private Task<DynamoIdentityUser> GetCurrentUserAsync()
         {
             return _userManager.GetUserAsync(HttpContext.User);
         }

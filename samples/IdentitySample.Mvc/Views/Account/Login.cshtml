@@ -1,9 +1,9 @@
 @using System.Collections.Generic
 @using Microsoft.AspNetCore.Http
 @using Microsoft.AspNetCore.Http.Authentication
-@using AspNetCore.Identity.MongoDB
+@using AspNetCore.Identity.DynamoDB
 @model LoginViewModel
-@inject SignInManager<MongoIdentityUser> SignInManager
+@inject SignInManager<DynamoIdentityUser> SignInManager
 
 @{
     ViewData["Title"] = "Log in";

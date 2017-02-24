@@ -1,36 +1,45 @@
-# AspNetCore.Identity.MongoDB [![Build Status](https://travis-ci.org/tugberkugurlu/AspNetCore.Identity.MongoDB.svg?branch=master)](https://travis-ci.org/tugberkugurlu/AspNetCore.Identity.MongoDB)
+# AspNetCore.Identity.DynamoDB
+[![Build Status](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB.svg?branch=master)](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB)
 
-[MongoDB](https://www.mongodb.com/) data store adaptor for [ASP.NET Core Identity](https://github.com/aspnet/Identity), which allows you to build ASP.NET Core web applications, including membership, login, and user data. With this library, you can store your user's membership related data on MongoDB.
+[DynamoDB](https://aws.amazon.com/dynamodb/) data store adaptor for [ASP.NET Core Identity](https://github.com/aspnet/Identity),
+which allows you to build ASP.NET Core web applications, including membership, login, and user data.With this library,
+you can store your user's membership related data on DynamoDB.
 
 ## Using the Library
 
-[The library is available at NuGet.org](https://www.nuget.org/packages/AspNetCore.Identity.MongoDB). You can start using the library by integrating it into your `project.json` file. This library supports [`netstandard1.6`](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
+[The library is available at NuGet.org](https://www.nuget.org/packages/AspNetCore.Identity.DynamoDB).
+You can start using the library by integrating it into your `project.json` file.
+This library supports [`netstandard1.6`](https://docs.microsoft.com/en-us/dotnet/articles/standard/library).
 
 ### Samples
 
-You can find some samples under [./samples](./samples) folder and each of the sample contain a README file on its own with the instructions showing how to run them.
+You can find some samples under [./samples](./samples) folder and each of the sample contain a README file
+on its own with the instructions showing how to run them.
 
 ### Tests
 
-In order to be able to run the tests, you need to have MongoDB up and running on `localhost:27017`. You can easily do this by running the below Docker command:
+In order to be able to run the tests, you need to have DynamoDB up and running on `localhost:8000`.
+You can easily do this by running the below Docker command:
 
 ```bash
-docker run --name some-mongo -d -p "27017:27017" mongo:3
+docker run -p 8000:8000 dwmkerr/dynamodb
 ```
 
-After that, you can run the tests through your prefered test runner (e.g. JetBrains Rider test runner) or by invoking the `dotnet test` command under the test project directory.
+After that, you can run the tests through your preferred test runner (e.g. JetBrains Rider test runner)
+or by invoking the `dotnet test` command under the test project directory.
 
-## Contributors
+## Notes
 
- - [Matt Whetton](https://github.com/mattwhetton)
- - [Soren Zand](https://github.com/SorenZ)
- - [Rethabile Mokoena](https://github.com/rm2k)
+The project is based on awesome work of @tugberkugurlu who created [MongoDB](https://github.com/tugberkugurlu/AspNetCore.Identity.MongoDB) 
+adaptor to AspNetCore, rewritten and adapted to the specifics of DynamoDB.
 
 ## License
 
 The MIT License (MIT)
 
 Copyright (c) 2016 Tugberk Ugurlu
+<br/>
+Copyright (c) 2017 Vasiliy Solovey
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

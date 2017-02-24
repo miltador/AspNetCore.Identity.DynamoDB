@@ -3,17 +3,16 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using AspNetCore.Identity.MongoDB.Models;
-using AspNetCore.Identity.MongoDB.Tests.Common;
+using AspNetCore.Identity.DynamoDB.Tests.Common;
 using Microsoft.AspNetCore.Identity;
 using Xunit;
 
-namespace AspNetCore.Identity.MongoDB.Tests
+namespace AspNetCore.Identity.DynamoDB.Tests
 {
-    public class MongoIdentityUserTests
+    public class DynamoIdentityUserTests
     {
         [Fact]
-        public async Task MongoIdentityUser_CanBeSavedAndRetrieved_WhenItBecomesTheSubclass()
+        public async Task DynamoIdentityUser_CanBeSavedAndRetrieved_WhenItBecomesTheSubclass()
         {
             var username = TestUtils.RandomString(10);
             var countryName = TestUtils.RandomString(10);
@@ -23,11 +22,11 @@ namespace AspNetCore.Identity.MongoDB.Tests
             var myCustomThing = TestUtils.RandomString(10);
             var user = new MyIdentityUser(username) { MyCustomThing = myCustomThing };
             user.AddClaim(new Claim(ClaimTypes.Country, countryName));
-            user.AddLogin(new MongoUserLogin(new UserLoginInfo(loginProvider, providerKey, displayName)));
+            user.AddLogin(new UserLoginInfo(loginProvider, providerKey, displayName));
 
-            using (var dbProvider = MongoDbServerTestUtils.CreateDatabase())
+            using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-                var store = new MongoUserStore<MyIdentityUser>(dbProvider.Database);
+                var store = new DynamoUserStore<MyIdentityUser>(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
                 // ACT, ASSERT
                 var result = await store.CreateAsync(user, CancellationToken.None);
@@ -39,11 +38,11 @@ namespace AspNetCore.Identity.MongoDB.Tests
                 Assert.Equal(username, retrievedUser.UserName);
                 Assert.Equal(myCustomThing, retrievedUser.MyCustomThing);
 
-                var countryClaim = retrievedUser.Claims.FirstOrDefault(x => x.ClaimType == ClaimTypes.Country);
+                var countryClaim = retrievedUser.GetClaims().FirstOrDefault(x => x.Type == ClaimTypes.Country);
                 Assert.NotNull(countryClaim);
-                Assert.Equal(countryName, countryClaim.ClaimValue);
+                Assert.Equal(countryName, countryClaim.Value);
 
-                var retrievedLoginProvider = retrievedUser.Logins.FirstOrDefault(x => x.LoginProvider == loginProvider);
+                var retrievedLoginProvider = retrievedUser.GetLogins().FirstOrDefault(x => x.LoginProvider == loginProvider);
                 Assert.NotNull(retrievedLoginProvider);
                 Assert.Equal(providerKey, retrievedLoginProvider.ProviderKey);
                 Assert.Equal(displayName, retrievedLoginProvider.ProviderDisplayName);
@@ -51,29 +50,30 @@ namespace AspNetCore.Identity.MongoDB.Tests
         }
 
         [Fact]
-        public async Task MongoIdentityUser_ShouldSaveAndRetrieveTheFutureOccuranceCorrectly()
+        public async Task DynamoIdentityUser_ShouldSaveAndRetrieveTheFutureOccuranceCorrectly()
         {
-            var lockoutEndDate = new DateTime(2017, 2, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(8996910);
-            var user = new MongoIdentityUser(TestUtils.RandomString(10));
+            var lockoutEndDate = new DateTime(2018, 2, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(8996910);
+            var user = new DynamoIdentityUser(TestUtils.RandomString(10));
             user.LockUntil(lockoutEndDate);
 
-            using (var dbProvider = MongoDbServerTestUtils.CreateDatabase())
+            using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-                var store = new MongoUserStore<MongoIdentityUser>(dbProvider.Database);
+                var store = new DynamoUserStore<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
                 // ACT
                 var result = await store.CreateAsync(user, CancellationToken.None);
 
                 // ASSERT
                 Assert.True(result.Succeeded);
-                var collection = dbProvider.Database.GetCollection<MongoIdentityUser>(Constants.DefaultCollectionName);
-                var retrievedUser = await collection.FindByIdAsync(user.Id);
+                var retrievedUser = await dbProvider.Context.LoadAsync(user);
                 Assert.Equal(user.LockoutEndDate, retrievedUser.LockoutEndDate);
             }
         }
 
-        public class MyIdentityUser : MongoIdentityUser
+        public class MyIdentityUser : DynamoIdentityUser
         {
+            public MyIdentityUser() { }
+
             public MyIdentityUser(string userName) : base(userName)
             {
             }

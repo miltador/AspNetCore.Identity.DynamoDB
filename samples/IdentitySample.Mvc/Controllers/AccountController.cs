@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using AspNetCore.Identity.DynamoDB;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -8,22 +9,21 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
 using IdentitySample.Models.AccountViewModels;
 using IdentitySample.Services;
-using AspNetCore.Identity.MongoDB;
 
 namespace IdentitySample.Controllers
 {
     [Authorize]
     public class AccountController : Controller
     {
-        private readonly UserManager<MongoIdentityUser> _userManager;
-        private readonly SignInManager<MongoIdentityUser> _signInManager;
+        private readonly UserManager<DynamoIdentityUser> _userManager;
+        private readonly SignInManager<DynamoIdentityUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly ISmsSender _smsSender;
         private readonly ILogger _logger;
 
         public AccountController(
-            UserManager<MongoIdentityUser> userManager,
-            SignInManager<MongoIdentityUser> signInManager,
+            UserManager<DynamoIdentityUser> userManager,
+            SignInManager<DynamoIdentityUser> signInManager,
             IEmailSender emailSender,
             ISmsSender smsSender,
             ILoggerFactory loggerFactory)
@@ -103,7 +103,7 @@ namespace IdentitySample.Controllers
             ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
-                var user = new MongoIdentityUser(model.Email, model.Email);
+                var user = new DynamoIdentityUser(model.Email, model.Email);
                 var result = await _userManager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
                 {
@@ -208,7 +208,7 @@ namespace IdentitySample.Controllers
                 {
                     return View("ExternalLoginFailure");
                 }
-                var user = new MongoIdentityUser(model.Email, model.Email);
+                var user = new DynamoIdentityUser(model.Email, model.Email);
                 var result = await _userManager.CreateAsync(user);
                 if (result.Succeeded)
                 {
@@ -451,7 +451,7 @@ namespace IdentitySample.Controllers
             }
         }
 
-        private Task<MongoIdentityUser> GetCurrentUserAsync()
+        private Task<DynamoIdentityUser> GetCurrentUserAsync()
         {
             return _userManager.GetUserAsync(HttpContext.User);
         }

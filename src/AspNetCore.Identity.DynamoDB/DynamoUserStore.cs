@@ -3,18 +3,20 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Threading;
-using MongoDB.Driver;
-using AspNetCore.Identity.MongoDB.Models;
 using System.Linq;
 using System.Security.Claims;
+using Amazon;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
+using Amazon.Util;
+using AspNetCore.Identity.DynamoDB.Extensions;
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Bson.Serialization.Conventions;
 
-namespace AspNetCore.Identity.MongoDB
+namespace AspNetCore.Identity.DynamoDB
 {
-    public class MongoUserStore<TUser> :
-        IUserStore<TUser>,
-        IUserLoginStore<TUser>,
+    public class DynamoUserStore<TUser> : IUserLoginStore<TUser>,
         IUserClaimStore<TUser>,
         IUserPasswordStore<TUser>,
         IUserSecurityStampStore<TUser>,
@@ -22,10 +24,10 @@ namespace AspNetCore.Identity.MongoDB
         IUserEmailStore<TUser>,
         IUserLockoutStore<TUser>,
         IUserPhoneNumberStore<TUser>
-        where TUser : MongoIdentityUser
+        where TUser : DynamoIdentityUser
     {
         [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-        private static bool _initialized = false;
+        private static bool _initialized;
 
         [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
         private static object _initializationLock = new object();
@@ -33,33 +35,22 @@ namespace AspNetCore.Identity.MongoDB
         [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
         private static object _initializationTarget;
 
-        private readonly IMongoCollection<TUser> _usersCollection;
+        private readonly IDynamoDBContext _context;
 
-        static MongoUserStore()
+        public DynamoUserStore(IAmazonDynamoDB client, IDynamoDBContext context, string userTableName = Constants.DefaultTableName)
         {
-            MongoConfig.EnsureConfigured();
-        }
-
-        public MongoUserStore(IMongoDatabase database)
-            : this(database, Constants.DefaultCollectionName)
-        {
-        }
-
-        public MongoUserStore(IMongoDatabase database, string userCollectionName)
-        {
-            if(database == null)
+            if(context == null)
             {
-                throw new ArgumentNullException(nameof(database));
-            }
-            
-            if (userCollectionName == null)
-            {
-                throw new ArgumentNullException(nameof(userCollectionName));
+                throw new ArgumentNullException(nameof(context));
             }
 
-            _usersCollection = database.GetCollection<TUser>(userCollectionName);
+            if (userTableName != Constants.DefaultTableName)
+            {
+                AWSConfigsDynamoDB.Context.AddAlias(new TableAlias(userTableName, Constants.DefaultTableName));
+            }
+            _context = context;
 
-            EnsureIndicesCreatedAsync().GetAwaiter().GetResult();
+            EnsureInitializedAsync(client, userTableName).GetAwaiter().GetResult();
         }
 
         public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
@@ -71,8 +62,7 @@ namespace AspNetCore.Identity.MongoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await _usersCollection.InsertOneAsync(user, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            await _context.SaveAsync(user, cancellationToken);
 
             return IdentityResult.Success;
         }
@@ -88,15 +78,12 @@ namespace AspNetCore.Identity.MongoDB
 
             user.Delete();
 
-            var query = Builders<TUser>.Filter.Eq(u => u.Id, user.Id);
-            var update = Builders<TUser>.Update.Set(u => u.DeletedOn, user.DeletedOn);
-
-            await _usersCollection.UpdateOneAsync(query, update, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await _context.SaveAsync(user, cancellationToken);
 
             return IdentityResult.Success;
         }
 
-        public Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken)
+        public async Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken)
         {
             if (userId == null)
             {
@@ -105,15 +92,11 @@ namespace AspNetCore.Identity.MongoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var query = Builders<TUser>.Filter.And(
-                Builders<TUser>.Filter.Eq(u => u.Id, userId),
-                Builders<TUser>.Filter.Eq(u => u.DeletedOn, null)
-            );
-
-            return _usersCollection.Find(query).FirstOrDefaultAsync(cancellationToken);
+            var user = await _context.LoadAsync<TUser>(userId, default(DateTime), cancellationToken);
+            return user.DeletedOn != default(DateTime) ? user : null;
         }
 
-        public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+        public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
         {
             if (normalizedUserName == null)
             {
@@ -122,12 +105,11 @@ namespace AspNetCore.Identity.MongoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var query = Builders<TUser>.Filter.And(
-                Builders<TUser>.Filter.Eq(u => u.NormalizedUserName, normalizedUserName),
-                Builders<TUser>.Filter.Eq(u => u.DeletedOn, null)
-            );
-
-            return _usersCollection.Find(query).FirstOrDefaultAsync(cancellationToken);
+            var user = await _context.LoadAsync<TUser>(normalizedUserName, default(DateTime), new DynamoDBOperationConfig
+            {
+                IndexName = "NormalizedUserName-DeletedOn-index"
+            }, cancellationToken);
+            return user;
         }
 
         public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -189,16 +171,11 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var query = Builders<TUser>.Filter.And(
-                Builders<TUser>.Filter.Eq(u => u.Id, user.Id),
-                Builders<TUser>.Filter.Eq(u => u.DeletedOn, null)
-            );
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var replaceResult = await _usersCollection.ReplaceOneAsync(query, user, new UpdateOptions { IsUpsert = false }).ConfigureAwait(false);
+            await _context.SaveAsync(user, cancellationToken);
 
-            return replaceResult.IsModifiedCountAvailable && replaceResult.ModifiedCount == 1
-                ? IdentityResult.Success
-                : IdentityResult.Failed();
+            return IdentityResult.Success;
         }
 
         public Task AddLoginAsync(TUser user, UserLoginInfo login, CancellationToken cancellationToken)
@@ -214,12 +191,12 @@ namespace AspNetCore.Identity.MongoDB
             }
 
             // NOTE: Not the best way to ensure uniquness.
-            if (user.Logins.Any(x => x.Equals(login)))
+            if (user.GetLogins().Any(x => x.EqualsTo(login)))
             {
                 throw new InvalidOperationException("Login already exists.");
             }
 
-            user.AddLogin(new MongoUserLogin(login));
+            user.AddLogin(login);
 
             return Task.FromResult(0);
         }
@@ -242,11 +219,11 @@ namespace AspNetCore.Identity.MongoDB
             }
 
             var login = new UserLoginInfo(loginProvider, providerKey, string.Empty);
-            var loginToRemove = user.Logins.FirstOrDefault(x => x.Equals(login));
+            var loginToRemove = user.GetLogins().FirstOrDefault(x => x.EqualsTo(login));
 
             if (loginToRemove != null)
             {
-                user.RemoveLogin(loginToRemove);
+                user.RemoveLogin(login);
             }
 
             return Task.FromResult(0);
@@ -259,13 +236,10 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var logins = user.Logins.Select(login => 
-                new UserLoginInfo(login.LoginProvider, login.ProviderKey, login.ProviderDisplayName));
-
-            return Task.FromResult<IList<UserLoginInfo>>(logins.ToList());
+            return Task.FromResult(user.GetLogins());
         }
 
-        public Task<TUser> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
+        public async Task<TUser> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
         {
             if (loginProvider == null)
             {
@@ -277,17 +251,18 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(providerKey));
             }
 
-            var notDeletedQuery = Builders<TUser>.Filter.Eq(u => u.DeletedOn, null);
-            var loginQuery = Builders<TUser>.Filter.ElemMatch(usr => usr.Logins,
-                Builders<MongoUserLogin>.Filter.And(
-                    Builders<MongoUserLogin>.Filter.Eq(lg => lg.LoginProvider, loginProvider),
-                    Builders<MongoUserLogin>.Filter.Eq(lg => lg.ProviderKey, providerKey)
-                )
-            );
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var query = Builders<TUser>.Filter.And(notDeletedQuery, loginQuery);
-
-            return _usersCollection.Find(query).FirstOrDefaultAsync();
+            // it's a waste to do a scan but how would the query look like if not like this?
+            var usersSearch = _context.ScanAsync<TUser>(new List<ScanCondition>
+            {
+                new ScanCondition("LoginProviders", ScanOperator.Contains, loginProvider),
+                new ScanCondition("LoginProviderKeys", ScanOperator.Contains, providerKey)
+            });
+            // well, we guarantee that there will be only one record so the scan will not be so expensive
+            var users = await usersSearch.GetNextSetAsync(cancellationToken);
+            var user = users.FirstOrDefault();
+            return user?.DeletedOn == default(DateTime) ? user : null;
         }
 
         public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
@@ -297,9 +272,7 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var claims = user.Claims.Select(clm => new Claim(clm.ClaimType, clm.ClaimValue)).ToList();
-
-            return Task.FromResult<IList<Claim>>(claims);
+            return Task.FromResult(user.GetClaims());
         }
 
         public Task AddClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
@@ -339,7 +312,7 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(newClaim));
             }
 
-            user.RemoveClaim(new MongoUserClaim(claim));
+            user.RemoveClaim(claim);
             user.AddClaim(newClaim);
 
             return Task.FromResult(0);
@@ -359,7 +332,7 @@ namespace AspNetCore.Identity.MongoDB
 
             foreach (var claim in claims)
             {
-                user.RemoveClaim(new MongoUserClaim(claim));
+                user.RemoveClaim(claim);
             }
 
             return Task.FromResult(0);
@@ -372,18 +345,16 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(claim));
             }
 
-            var notDeletedQuery = Builders<TUser>.Filter.Eq(u => u.DeletedOn, null);
-            var claimQuery = Builders<TUser>.Filter.ElemMatch(usr => usr.Claims,
-                Builders<MongoUserClaim>.Filter.And(
-                    Builders<MongoUserClaim>.Filter.Eq(c => c.ClaimType, claim.Type),
-                    Builders<MongoUserClaim>.Filter.Eq(c => c.ClaimValue, claim.Value)
-                )
-            );
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var query = Builders<TUser>.Filter.And(notDeletedQuery, claimQuery);
-            var users = await _usersCollection.Find(query).ToListAsync().ConfigureAwait(false);
+            var usersSearch = _context.ScanAsync<TUser>(new List<ScanCondition>
+            {
+                new ScanCondition("ClaimTypes", ScanOperator.Contains, claim.Type),
+                new ScanCondition("ClaimValues", ScanOperator.Contains, claim.Value)
+            });
+            var users = await usersSearch.GetRemainingAsync(cancellationToken);
 
-            return users;
+            return users.Where(u => u.DeletedOn == default(DateTime)).ToList();
         }
 
         public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
@@ -498,7 +469,7 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var email = (user.Email != null) ? user.Email.Value : null;
+            var email = user.Email?.Value;
 
             return Task.FromResult(email);
         }
@@ -542,19 +513,20 @@ namespace AspNetCore.Identity.MongoDB
             return Task.FromResult(0);
         }
 
-        public Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+        public async Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
         {
             if (normalizedEmail == null)
             {
                 throw new ArgumentNullException(nameof(normalizedEmail));
             }
 
-            var query = Builders<TUser>.Filter.And(
-                Builders<TUser>.Filter.Eq(u => u.Email.NormalizedValue, normalizedEmail),
-                Builders<TUser>.Filter.Eq(u => u.DeletedOn, null)
-            );
+            cancellationToken.ThrowIfCancellationRequested();
 
-            return _usersCollection.Find(query).FirstOrDefaultAsync(cancellationToken);
+            var user = await _context.LoadAsync<TUser>(normalizedEmail, default(DateTime), new DynamoDBOperationConfig
+            {
+                IndexName = "Email.NormalizedValue-DeletedOn-index"
+            }, cancellationToken);
+            return user;
         }
 
         public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
@@ -564,7 +536,7 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var normalizedEmail = (user.Email != null) ? user.Email.NormalizedValue : null;
+            var normalizedEmail = user.Email?.NormalizedValue;
 
             return Task.FromResult(normalizedEmail);
         }
@@ -575,14 +547,14 @@ namespace AspNetCore.Identity.MongoDB
             {
                 throw new ArgumentNullException(nameof(user));
             }
-            
+
             // This method can be called even if user doesn't have an e-mail.
             // Act cool in this case and gracefully handle.
             // More info: https://github.com/aspnet/Identity/issues/645
 
-            if(normalizedEmail != null && user.Email != null)
+            if(normalizedEmail != null)
             {
-                user.Email.SetNormalizedEmail(normalizedEmail);   
+                user.Email?.SetNormalizedEmail(normalizedEmail);
             }
 
             return Task.FromResult(0);
@@ -595,9 +567,7 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var lockoutEndDate = user.LockoutEndDate != null
-                ? new DateTimeOffset(user.LockoutEndDate.Instant)
-                : default(DateTimeOffset?);
+            var lockoutEndDate = new DateTimeOffset?(user.LockoutEndDate);
 
             return Task.FromResult(lockoutEndDate);
         }
@@ -624,19 +594,12 @@ namespace AspNetCore.Identity.MongoDB
                 throw new ArgumentNullException(nameof(user));
             }
 
-            var filter = Builders<TUser>.Filter.Eq(u => u.Id, user.Id);
-            var update = Builders<TUser>.Update.Inc(usr => usr.AccessFailedCount, 1);
-            var findOneAndUpdateOptions = new FindOneAndUpdateOptions<TUser, int>
-            {
-                ReturnDocument = ReturnDocument.After,
-                Projection = Builders<TUser>.Projection.Expression(usr => usr.AccessFailedCount)
-            };
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var newCount = await _usersCollection
-                .FindOneAndUpdateAsync<int>(filter, update, findOneAndUpdateOptions)
-                .ConfigureAwait(false);
-
+            var newCount = user.AccessFailedCount + 1;
             user.SetAccessFailedCount(newCount);
+
+            await _context.SaveAsync(user, cancellationToken);
 
             return newCount;
         }
@@ -755,40 +718,157 @@ namespace AspNetCore.Identity.MongoDB
         {
         }
 
-        private async Task EnsureIndicesCreatedAsync()
+        private async Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
         {
-            var obj = LazyInitializer.EnsureInitialized(ref _initializationTarget, ref _initialized, ref _initializationLock, () =>
-            {
-                return EnsureIndicesCreatedImplAsync();
-            });
+            var obj = LazyInitializer.EnsureInitialized(ref _initializationTarget, ref _initialized, ref _initializationLock, () => EnsureInitializedImplAsync(client, userTableName));
 
             if(obj != null)
             {
                 var taskToAwait = (Task)obj;
-                await taskToAwait.ConfigureAwait(false);
+                await taskToAwait;
             }
         }
 
-        private async Task EnsureIndicesCreatedImplAsync()
+        private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string userTableName)
         {
-            var indexNames = new
+            var defaultProvisionThroughput = new ProvisionedThroughput
             {
-                UniqueEmail = "identity_email_unique",
-                Login = "identity_logins_loginProvider_providerKey"
+                ReadCapacityUnits = 5,
+                WriteCapacityUnits = 5
+            };
+            var globalSecondaryIndexes = new List<GlobalSecondaryIndex>
+            {
+                new GlobalSecondaryIndex
+                {
+                    IndexName = "NormalizedUserName-DeletedOn-index",
+                    KeySchema = new List<KeySchemaElement>
+                    {
+                        new KeySchemaElement("NormalizedUserName", KeyType.HASH),
+                        new KeySchemaElement("DeletedOn", KeyType.RANGE)
+                    },
+                    ProvisionedThroughput = defaultProvisionThroughput,
+                    Projection = new Projection
+                    {
+                        ProjectionType = ProjectionType.ALL
+                    }
+                },
+                new GlobalSecondaryIndex
+                {
+                    IndexName = "Email.NormalizedValue-DeletedOn-index",
+                    KeySchema = new List<KeySchemaElement>
+                    {
+                        new KeySchemaElement("Email.NormalizedValue", KeyType.HASH),
+                        new KeySchemaElement("DeletedOn", KeyType.RANGE)
+                    },
+                    ProvisionedThroughput = defaultProvisionThroughput,
+                    Projection = new Projection
+                    {
+                        ProjectionType = ProjectionType.ALL
+                    }
+                }
             };
 
-            var pack = ConventionRegistry.Lookup(typeof(CamelCaseElementNameConvention));
+            var tables = await client.ListTablesAsync();
+            var tableNames = tables.TableNames;
 
-            var emailKeyBuilder = Builders<TUser>.IndexKeys.Ascending(user => user.Email.Value);
-            var loginKeyBuilder = Builders<TUser>.IndexKeys.Ascending("logins.loginProvider").Ascending("logins.providerKey");
-
-            var tasks = new[]
+            if (!tableNames.Contains(userTableName))
             {
-                _usersCollection.Indexes.CreateOneAsync(emailKeyBuilder, new CreateIndexOptions { Unique = true, Name = indexNames.UniqueEmail }),
-                _usersCollection.Indexes.CreateOneAsync(loginKeyBuilder, new CreateIndexOptions { Name = indexNames.Login })
-            };
+                await CreateTableAsync(client, userTableName, defaultProvisionThroughput, globalSecondaryIndexes);
+                return;
+            }
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+            var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
+            var table = response.Table;
+
+            var indexesToAdd = globalSecondaryIndexes.Where(g => !table.GlobalSecondaryIndexes.Exists(gd => gd.IndexName.Equals(g.IndexName)));
+            var indexUpdates = indexesToAdd.Select(index => new GlobalSecondaryIndexUpdate
+            {
+                Create = new CreateGlobalSecondaryIndexAction
+                {
+                    IndexName = index.IndexName, KeySchema = index.KeySchema, ProvisionedThroughput = index.ProvisionedThroughput, Projection = index.Projection
+                }
+            }).ToList();
+
+            if (indexUpdates.Count > 0)
+            {
+                await UpdateTableAsync(client, userTableName, indexUpdates);
+            }
+        }
+
+        private async Task CreateTableAsync(IAmazonDynamoDB client, string userTableName, ProvisionedThroughput provisionedThroughput, List<GlobalSecondaryIndex> globalSecondaryIndexes)
+        {
+            await client.CreateTableAsync(new CreateTableRequest
+            {
+                TableName = userTableName,
+                ProvisionedThroughput = provisionedThroughput,
+                KeySchema = new List<KeySchemaElement>
+                {
+                    new KeySchemaElement
+                    {
+                        AttributeName = "Id",
+                        KeyType = KeyType.HASH
+                    },
+                    new KeySchemaElement
+                    {
+                        AttributeName = "DeletedOn",
+                        KeyType = KeyType.RANGE
+                    }
+                },
+                AttributeDefinitions = new List<AttributeDefinition>
+                {
+                    new AttributeDefinition
+                    {
+                        AttributeName = "Id",
+                        AttributeType = ScalarAttributeType.S
+                    },
+                    new AttributeDefinition
+                    {
+                        AttributeName = "DeletedOn",
+                        AttributeType = ScalarAttributeType.S
+                    },
+                    new AttributeDefinition
+                    {
+                        AttributeName = "NormalizedUserName",
+                        AttributeType = ScalarAttributeType.S
+
+                    },
+                    new AttributeDefinition
+                    {
+                        AttributeName = "Email.NormalizedValue",
+                        AttributeType = ScalarAttributeType.S
+                    }
+                },
+                GlobalSecondaryIndexes = globalSecondaryIndexes
+            });
+
+            await WaitForActiveTable(client, userTableName);
+        }
+
+        private async Task WaitForActiveTable(IAmazonDynamoDB client, string userTableName)
+        {
+            bool active;
+            do
+            {
+                active = true;
+                var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
+                if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE))
+                    active = false;
+                if (!response.Table.GlobalSecondaryIndexes.TrueForAll(g => g.IndexStatus.Equals(IndexStatus.ACTIVE)))
+                    active = false;
+
+                Thread.Sleep(TimeSpan.FromSeconds(5));
+            } while (!active);
+        }
+
+        private async Task UpdateTableAsync(IAmazonDynamoDB client, string userTableName, List<GlobalSecondaryIndexUpdate> indexUpdates)
+        {
+            await client.UpdateTableAsync(new UpdateTableRequest
+            {
+                TableName = userTableName,
+                GlobalSecondaryIndexUpdates = indexUpdates
+            });
+
+            await WaitForActiveTable(client, userTableName);
         }
     }
 }

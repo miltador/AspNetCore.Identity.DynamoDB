@@ -1,10 +1,10 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using AspNetCore.Identity.MongoDB.Tests.Common;
+using AspNetCore.Identity.DynamoDB.Tests.Common;
 using Microsoft.AspNetCore.Identity;
 using Xunit;
 
-namespace AspNetCore.Identity.MongoDB.Tests
+namespace AspNetCore.Identity.DynamoDB.Tests
 {
     public class UserStoreTests
     {
@@ -12,17 +12,16 @@ namespace AspNetCore.Identity.MongoDB.Tests
         public async Task CreateAsync_ShouldCreateUser()
         {
             // ARRANGE
-            using (var dbProvider = MongoDbServerTestUtils.CreateDatabase())
+            using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-                var userStore = new MongoUserStore<MongoIdentityUser>(dbProvider.Database) as IUserStore<MongoIdentityUser>;
-                var user = new MongoIdentityUser(TestUtils.RandomString(10));
+                var userStore = new DynamoUserStore<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName()) as IUserStore<DynamoIdentityUser>;
+                var user = new DynamoIdentityUser(TestUtils.RandomString(10));
 
                 // ACT
                 await userStore.CreateAsync(user, CancellationToken.None);
 
                 // ASSERT
-                var collection = dbProvider.Database.GetDefaultCollection();
-                var retrievedUser = await collection.FindByIdAsync(user.Id);
+                var retrievedUser = await dbProvider.Context.LoadAsync(user);
 
                 Assert.NotNull(retrievedUser);
                 Assert.Equal(user.UserName, retrievedUser.UserName);

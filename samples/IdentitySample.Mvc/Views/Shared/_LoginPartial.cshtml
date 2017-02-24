@@ -1,8 +1,8 @@
 @using Microsoft.AspNetCore.Identity
-@using AspNetCore.Identity.MongoDB
+@using AspNetCore.Identity.DynamoDB
 
-@inject SignInManager<MongoIdentityUser> SignInManager
-@inject UserManager<MongoIdentityUser> UserManager
+@inject SignInManager<DynamoIdentityUser> SignInManager
+@inject UserManager<DynamoIdentityUser> UserManager
 
 @if (SignInManager.IsSignedIn(User))
 {
