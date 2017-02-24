@@ -848,6 +848,7 @@ namespace AspNetCore.Identity.DynamoDB
             bool active;
             do
             {
+	            Thread.Sleep(TimeSpan.FromSeconds(5));
                 active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
 	            if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
@@ -855,8 +856,6 @@ namespace AspNetCore.Identity.DynamoDB
 	            {
 		            active = false;
 	            }
-
-                Thread.Sleep(TimeSpan.FromSeconds(5));
             } while (!active);
         }
 
