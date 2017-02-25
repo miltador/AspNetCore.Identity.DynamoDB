@@ -1,8 +1,6 @@
 sudo: required
 dist: trusty
 language: csharp
-services:
-  - docker
 env:
   global:
   - COMMIT=${TRAVIS_COMMIT::8}
@@ -11,6 +9,10 @@ env:
   - AWS_SECRET_ACCESS_KEY=MOCK_SECRET_KEY
   - AWS_SESSION_TOKEN=MOCK_SESSION_TOKEN
   - secure: "H5wkF2579efgwqXuduwoxyEVQP+GzKtTGA7sjgMkhkHdpKjnjB0g4MKjVjAaMuG1l4GOwqdVztv6U17yE49oWlO2MkAFe3ElMZsTt1DRb0djx5NEqmtyHFxiBCZ2aKD0Hl5jnQubqgknKS5sOwOQtktT5amIl6+LdgXWEfDXEJ0RdSOr3/DzaXbn/cMsZa9IVZFa0lSU+GMmC4Y7RmjGDlj/0i3GdrKJ6poOXX5H37x0isfTndCmzX7guKdFpZCK4aMrc99XoSxqLPrGMumpjm1lP1N79F8N4h3iYjEa/GAPTIqVcJOv5uRmAcmLrjm1Jb2QrrpUh7sUWovgMJ0il/LVMWu+5rvy4QZ+GMSSkOWBNue0JoCNTUUauXoS5YWUAU9pWnZJOp6n2p53o6rb0j530HhBmQdGIE7rWVwO23tajbNiPNEiFEe6M9ZQ5hhWxE8pCqSzcS8x7uWxAp6Q42JwO2tYi9GYpVr+G8rKYyoyBpqlDql7EdAqetz/X4Y1jHW4ATIpZE9ldFHzEwt29aAeXB91yA8dIoPdfGr8idzQn5i/9XQ9esKM9siTQtdqP23RYo2uA3CFmOEyJc32kEsgg+dtJ2SITiU6z1W+kZoQ5M+HE5ialtP0wp1ooSlZPV3iv1zXaiGclpwAdXUXo8uHNOz4oJvPth/Y6z0RJCM="
+before_install:
+- mkdir /tmp/dynamodb
+- wget -O - https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | tar xzC /tmp/dynamodb
+- java -Djava.library.path=/tmp/dynamodb/DynamoDBLocal_lib -Xss1m -Xms320m -Xmx320m -jar /tmp/dynamodb/DynamoDBLocal.jar -port 8000 -inMemory &
 install:
 - sudo apt-get install -y jq
 - sudo touch /etc/apt/sources.list.d/dotnetdev.list
@@ -20,7 +22,6 @@ install:
 - curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -
 - sudo apt-get install -y nodejs
 - sudo npm install semver -g
-- docker pull dwmkerr/dynamodb
 before_script:
 - chmod u+x build.sh
 - chmod u+x ./scripts/set-build-version.sh
@@ -31,8 +32,6 @@ before_script:
 - export PATH=$PATH:$HOME/.local/bin
 - mono --version
 - dotnet --info
-- docker run -d -p 8000:8000 dwmkerr/dynamodb -inMemory
-- docker ps -a
 script:
 - ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=RELEASE --outputFolder=./artifacts --pack
 after_success:
