@@ -848,6 +848,7 @@ namespace AspNetCore.Identity.DynamoDB
             bool active;
             do
             {
+	            Console.WriteLine("Waiting for the table to become active and indexes got populated...");
 	            Thread.Sleep(TimeSpan.FromSeconds(5));
                 active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
