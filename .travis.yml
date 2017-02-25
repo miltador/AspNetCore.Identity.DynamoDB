@@ -1,38 +1,43 @@
-sudo: required
-dist: trusty
 language: csharp
+solution: AspNetCore.Identity.DynamoDB.sln
+
+sudo: false
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      mono: latest
+      env: FRAMEWORK=netcoreapp1.0.1
+      dotnet: 1.0.0-preview2-003131
+
 env:
   global:
   - COMMIT=${TRAVIS_COMMIT::8}
-  - ARTIFACTS_PATHS=./artifacts
+  - ARTIFACTS_PATH=./artifacts
   - AWS_ACCESS_KEY_ID=MOCK_ID
   - AWS_SECRET_ACCESS_KEY=MOCK_SECRET_KEY
   - AWS_SESSION_TOKEN=MOCK_SESSION_TOKEN
   - secure: "H5wkF2579efgwqXuduwoxyEVQP+GzKtTGA7sjgMkhkHdpKjnjB0g4MKjVjAaMuG1l4GOwqdVztv6U17yE49oWlO2MkAFe3ElMZsTt1DRb0djx5NEqmtyHFxiBCZ2aKD0Hl5jnQubqgknKS5sOwOQtktT5amIl6+LdgXWEfDXEJ0RdSOr3/DzaXbn/cMsZa9IVZFa0lSU+GMmC4Y7RmjGDlj/0i3GdrKJ6poOXX5H37x0isfTndCmzX7guKdFpZCK4aMrc99XoSxqLPrGMumpjm1lP1N79F8N4h3iYjEa/GAPTIqVcJOv5uRmAcmLrjm1Jb2QrrpUh7sUWovgMJ0il/LVMWu+5rvy4QZ+GMSSkOWBNue0JoCNTUUauXoS5YWUAU9pWnZJOp6n2p53o6rb0j530HhBmQdGIE7rWVwO23tajbNiPNEiFEe6M9ZQ5hhWxE8pCqSzcS8x7uWxAp6Q42JwO2tYi9GYpVr+G8rKYyoyBpqlDql7EdAqetz/X4Y1jHW4ATIpZE9ldFHzEwt29aAeXB91yA8dIoPdfGr8idzQn5i/9XQ9esKM9siTQtdqP23RYo2uA3CFmOEyJc32kEsgg+dtJ2SITiU6z1W+kZoQ5M+HE5ialtP0wp1ooSlZPV3iv1zXaiGclpwAdXUXo8uHNOz4oJvPth/Y6z0RJCM="
+
 before_install:
-- mkdir /tmp/dynamodb
-- wget -O - https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | tar xzC /tmp/dynamodb
-- java -Djava.library.path=/tmp/dynamodb/DynamoDBLocal_lib -Xss1m -Xms320m -Xmx320m -jar /tmp/dynamodb/DynamoDBLocal.jar -port 8000 -inMemory &
-install:
-- sudo apt-get install -y jq
-- sudo touch /etc/apt/sources.list.d/dotnetdev.list
-- echo "deb [arch=amd64] http://apt-mo.trafficmanager.net/repos/dotnet/ trusty main" | sudo tee -a /etc/apt/sources.list.d/dotnetdev.list
-- sudo apt-key adv --keyserver apt-mo.trafficmanager.net --recv-keys 417A0893 && sudo apt-get update
-- sudo apt-get install -y --no-install-recommends dotnet-dev-1.0.0-preview2.1-003177
-- curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -
-- sudo apt-get install -y nodejs
-- sudo npm install semver -g
+  - npm install semver
+  - mkdir /tmp/dynamodb
+  - wget -O - https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | tar xzC /tmp/dynamodb
+  - java -Djava.library.path=/tmp/dynamodb/DynamoDBLocal_lib -Djava.net.preferIPv4Stack=true -Xss1m -Xms320m -Xmx320m -jar /tmp/dynamodb/DynamoDBLocal.jar -port 8000 -inMemory &
+
 before_script:
-- chmod u+x build.sh
-- chmod u+x ./scripts/set-build-version.sh
-- chmod u+x ./scripts/patch-version.sh
-- chmod u+x ./scripts/push-to-nuget.sh
-- eval $(./scripts/set-build-version.sh)
-- ./scripts/patch-version.sh --version=$PROJECT_BUILD_VERSION
-- export PATH=$PATH:$HOME/.local/bin
-- mono --version
-- dotnet --info
+  - chmod u+x build.sh
+  - chmod u+x ./scripts/set-build-version.sh
+  - chmod u+x ./scripts/patch-version.sh
+  - chmod u+x ./scripts/push-to-nuget.sh
+  - eval $(./scripts/set-build-version.sh)
+  - ./scripts/patch-version.sh --version=$PROJECT_BUILD_VERSION
+  - export PATH=$PATH:$HOME/.local/bin
+  - mono --version
+  - dotnet --info
+
 script:
-- ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=RELEASE --outputFolder=./artifacts --pack
+  - ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=RELEASE --testframework=$FRAMEWORK --outputFolder=$ARTIFACTS_PATH --pack
+
 after_success:
-- if [ ! -z "$TRAVIS_TAG" ] && semver $TRAVIS_TAG &>/dev/null; then ./scripts/push-to-nuget.sh --apikey=$NUGET_API_KEY --version=$PROJECT_BUILD_VERSION; fi
+  - if [ ! -z "$TRAVIS_TAG" ] && semver $TRAVIS_TAG &>/dev/null; then ./scripts/push-to-nuget.sh --apikey=$NUGET_API_KEY --version=$PROJECT_BUILD_VERSION; fi

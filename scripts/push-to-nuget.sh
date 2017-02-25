@@ -2,7 +2,7 @@
 
 for i in "$@"
 do
-case $i in
+case ${i} in
     -k=*|--apikey=*)
     APIKEY="${i#*=}"
     shift # past argument=value
@@ -41,12 +41,12 @@ if [ ! -f "$nugetExePath" ]
 then
     if [ ! -d "$nugetExeDirPath" ]
     then
-        mkdir $nugetExeDirPath || exit 1
+        mkdir ${nugetExeDirPath} || exit 1
     fi
 
     echo "downloading '$nuGetUrl' into '$nugetExePath'..."
-    curl -L -o $nugetExePath $nuGetUrl | tac || exit 1
+    curl -L -o ${nugetExePath} ${nuGetUrl} | tac || exit 1
 fi
 
 echo "pushing $nugetPackagePath to NuGet.org..."
-mono $nugetExePath push $nugetPackagePath -ApiKey $APIKEY || exit 1
+mono ${nugetExePath} push ${nugetPackagePath} -ApiKey $APIKEY || exit 1

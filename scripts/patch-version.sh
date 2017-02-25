@@ -2,7 +2,7 @@
 
 for i in "$@"
 do
-case $i in
+case ${i} in
     -v=*|--version=*)
     VERSIONNUMBER="${i#*=}"
     shift # past argument=value
@@ -23,10 +23,10 @@ fi
 
 scriptsDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 rootDir="$(dirname "$scriptsDir")"
-projectFiles=$rootDir/src/**/project.json
+projectFiles=${rootDir}/src/**/project.json
 
-for projectFile in $projectFiles
+for projectFile in ${projectFiles}
 do
     echo "patching $projectFile with version $VERSIONNUMBER"
-    echo $(jq ". + { \"version\": \"$VERSIONNUMBER\" }" <<<$(jq 'del(.version)' <<<"$(cat $projectFile)")) > $projectFile 
+    echo $(jq ". + { \"version\": \"$VERSIONNUMBER\" }" <<<$(jq 'del(.version)' <<<"$(cat ${projectFile})")) > ${projectFile} 
 done

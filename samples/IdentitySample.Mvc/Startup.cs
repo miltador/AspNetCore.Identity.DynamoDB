@@ -61,8 +61,7 @@ namespace IdentitySample
                 var options = provider.GetService<IOptions<DynamoDbSettings>>();
                 var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
                 {
-                    ServiceURL = options.Value.ServiceUrl,
-                    UseHttp = true
+                    ServiceURL = options.Value.ServiceUrl
                 });
                 var context = new DynamoDBContext(client);
 

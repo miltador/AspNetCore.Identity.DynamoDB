@@ -22,7 +22,7 @@ In order to be able to run the tests, you need to have DynamoDB up and running o
 You can easily do this by running the below Docker command:
 
 ```bash
-docker run -p 8000:8000 dwmkerr/dynamodb
+docker run -p 8000:8000 dwmkerr/dynamodb -sharedDb -inMemory
 ```
 
 After that, you can run the tests through your preferred test runner (e.g. JetBrains Rider test runner)

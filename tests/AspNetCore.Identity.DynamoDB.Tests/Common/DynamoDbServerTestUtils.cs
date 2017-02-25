@@ -16,8 +16,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests.Common
             {
                 Client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
                 {
-                    ServiceURL = "http://localhost:8000",
-                    UseHttp = true
+                    ServiceURL = "http://localhost:8000"
                 });
                 Context = new DynamoDBContext(Client);
             }

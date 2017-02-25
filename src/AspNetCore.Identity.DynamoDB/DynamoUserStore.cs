@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using Amazon;
 using Amazon.DynamoDBv2;
@@ -717,15 +718,11 @@ namespace AspNetCore.Identity.DynamoDB
         {
         }
 
-        private async Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
+        private Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
         {
             var obj = LazyInitializer.EnsureInitialized(ref _initializationTarget, ref _initialized, ref _initializationLock, () => EnsureInitializedImplAsync(client, userTableName));
 
-            if(obj != null)
-            {
-                var taskToAwait = (Task)obj;
-                await taskToAwait;
-            }
+            return (Task)obj;
         }
 
         private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string userTableName)
@@ -767,13 +764,17 @@ namespace AspNetCore.Identity.DynamoDB
                 }
             };
 
-            var tables = await client.ListTablesAsync();
-            var tableNames = tables.TableNames;
+            var tablesResponse = await client.ListTablesAsync();
+	        if (tablesResponse.HttpStatusCode != HttpStatusCode.OK)
+	        {
+		        throw new Exception("Couldn't get list of tables");
+	        }
+            var tableNames = tablesResponse.TableNames;
 
             if (!tableNames.Contains(userTableName))
             {
-                await CreateTableAsync(client, userTableName, defaultProvisionThroughput, globalSecondaryIndexes);
-                return;
+	            await CreateTableAsync(client, userTableName, defaultProvisionThroughput, globalSecondaryIndexes);
+	            return;
             }
 
             var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
@@ -840,10 +841,10 @@ namespace AspNetCore.Identity.DynamoDB
                 GlobalSecondaryIndexes = globalSecondaryIndexes
             });
 
-            await WaitForActiveTable(client, userTableName);
+            await WaitForActiveTableAsync(client, userTableName);
         }
 
-        private async Task WaitForActiveTable(IAmazonDynamoDB client, string userTableName)
+        private async Task WaitForActiveTableAsync(IAmazonDynamoDB client, string userTableName)
         {
             bool active;
             do
@@ -853,7 +854,7 @@ namespace AspNetCore.Identity.DynamoDB
                 active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
 	            if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
-	                response.Table.GlobalSecondaryIndexes.Any(g => !Equals(g.IndexStatus, IndexStatus.ACTIVE)))
+	                !response.Table.GlobalSecondaryIndexes.TrueForAll(g => Equals(g.IndexStatus, IndexStatus.ACTIVE)))
 	            {
 		            active = false;
 	            }
@@ -868,7 +869,7 @@ namespace AspNetCore.Identity.DynamoDB
                 GlobalSecondaryIndexUpdates = indexUpdates
             });
 
-            await WaitForActiveTable(client, userTableName);
+            await WaitForActiveTableAsync(client, userTableName);
         }
     }
 }

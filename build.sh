@@ -2,13 +2,17 @@
 
 for i in "$@"
 do
-case $i in
+case ${i} in
     -v=*|--version=*)
     BUILDVERSION="${i#*=}"
     shift # past argument=value
     ;;
     -c=*|--configuration=*)
     CONFIGURATION="${i#*=}"
+    shift # past argument=value
+    ;;
+    -tf=*|--testframework=*)
+    TESTFRAMEWORK="${i#*=}"
     shift # past argument=value
     ;;
     -o=*|--outputFolder=*)
@@ -33,6 +37,7 @@ done
 
 echo "BUILD VERSION = ${BUILDVERSION}"
 echo "CONFIGURATION = ${CONFIGURATION}"
+echo "TESTFRAMEWORK = ${TESTFRAMEWORK}"
 echo "OUTPUT FOLDER = ${OUTPUTFOLDER}"
 echo "PACK          = ${PACK}"
 echo "PUBLISH       = ${PUBLISH}"
@@ -41,6 +46,12 @@ if [ -z ${CONFIGURATION+x} ]
 then
     echo "No configuration is specified, defaulting to DEBUG"
     CONFIGURATION=DEBUG
+fi
+
+if [ -z ${TESTFRAMEWORK+x} ]
+then
+    echo "No test framework is specified, defaulting to netcoreapp1.1"
+    TESTFRAMEWORK=netcoreapp1.1
 fi
 
 if [ -z ${BUILDVERSION+x} ]
@@ -55,7 +66,7 @@ artifactsDir=${scriptsDir%%/}/artifacts
 if [ -z ${OUTPUTFOLDER+x} ]
 then
     echo "No output folder is specified, defaulting to $artifactsDir"
-    OUTPUTFOLDER=$artifactsDir
+    OUTPUTFOLDER=${artifactsDir}
 fi
 
 outputDir=${OUTPUTFOLDER%%/}/apps
@@ -73,7 +84,7 @@ for projectDirectory in "${projectRootDirectories[@]}"
 do
     # restore
     echo "starting to restore for $projectDirectory"
-    dotnet restore $projectDirectory || exit 1
+    dotnet restore ${projectDirectory} || exit 1
 done
 
 # build, publish
@@ -83,18 +94,18 @@ do
 
     # build
     echo "starting to build $projectFilePath"
-    dotnet build $projectFilePath --configuration $CONFIGURATION || exit 1
+    dotnet build ${projectFilePath} --configuration ${CONFIGURATION} || exit 1
 
     # publish
     echo "checking if $projectFilePath is publisable"
-    if cat $projectFilePath | grep '"emitEntryPoint": true' &>/dev/null
+    if cat ${projectFilePath} | grep '"emitEntryPoint": true' &>/dev/null
     then
         if [ -z ${PUBLISH+x} ]
         then
             echo "$projectDirectory is publishable but publish is disabled"
         else
             echo "starting to publish for $projectDirectory"
-            dotnet publish $projectDirectory --configuration $CONFIGURATION --output $outputDir --runtime active --no-build || exit 1
+            dotnet publish ${projectDirectory} --configuration ${CONFIGURATION} --output ${outputDir} --runtime active --no-build || exit 1
         fi
     else
         echo "$projectFilePath is not publisable. Looking to see if it should be packed"
@@ -103,7 +114,7 @@ do
             echo "Pack is disabled. Skipping pack on $projectDirectory"
         else
             echo "starting to pack for $projectDirectory"
-            dotnet pack $projectDirectory --configuration $CONFIGURATION --output $packagesOutputDir --no-build || exit 1
+            dotnet pack ${projectDirectory} --configuration ${CONFIGURATION} --output ${packagesOutputDir} --no-build || exit 1
         fi
     fi
 done
@@ -114,5 +125,5 @@ do
 
     # test
     echo "starting to test $projectFilePath for configration $CONFIGURATION"
-    dotnet test $projectFilePath --configuration $CONFIGURATION --no-build || exit 1
+    dotnet test ${projectFilePath} --configuration ${CONFIGURATION} --framework ${TESTFRAMEWORK} --no-build || exit 1
 done

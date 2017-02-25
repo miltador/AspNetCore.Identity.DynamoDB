@@ -17,7 +17,7 @@ then
         echo export PROJECT_BUILD_VERSION="$baseVersion-$TRAVIS_BUILD_NUMBER";
     fi
 else 
-    if ! semver $TRAVIS_TAG &>/dev/null
+    if ! semver ${TRAVIS_TAG} &>/dev/null
     then
         # can add the build metadata to indicate this is a tag build which is not a SemVer
         echo export PROJECT_BUILD_VERSION="$baseVersion-$TRAVIS_BUILD_NUMBER";
