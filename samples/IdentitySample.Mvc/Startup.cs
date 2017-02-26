@@ -65,7 +65,8 @@ namespace IdentitySample
                 });
                 var context = new DynamoDBContext(client);
 
-                return new DynamoUserStore<DynamoIdentityUser>(client, context, options.Value.TableName);
+                return DynamoUserStoreFactory.New<DynamoIdentityUser>(client, context, options.Value.TableName)
+	                .GetAwaiter().GetResult();
             });
 
             services.Configure<IdentityOptions>(options =>
@@ -150,6 +151,8 @@ namespace IdentitySample
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
+
+
         }
 
         private void AddDefaultTokenProviders(IServiceCollection services)

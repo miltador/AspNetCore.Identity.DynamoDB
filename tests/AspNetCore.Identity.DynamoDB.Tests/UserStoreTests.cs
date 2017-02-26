@@ -14,7 +14,8 @@ namespace AspNetCore.Identity.DynamoDB.Tests
             // ARRANGE
             using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-                var userStore = new DynamoUserStore<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName()) as IUserStore<DynamoIdentityUser>;
+                var userStore = await DynamoUserStoreFactory.New<DynamoIdentityUser>(dbProvider.Client,
+	                dbProvider.Context, TestUtils.NewTableName()) as IUserStore<DynamoIdentityUser>;
                 var user = new DynamoIdentityUser(TestUtils.RandomString(10));
 
                 // ACT
