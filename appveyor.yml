@@ -1,0 +1,43 @@
+os: Visual Studio 2015
+
+environment:
+  AWS_ACCESS_KEY_ID: MOCK_ID
+  AWS_SECRET_ACCESS_KEY: MOCK_SECRET_KEY
+  AWS_SESSION_TOKEN: MOCK_SESSION_TOKEN
+  matrix:
+    - CLI_VERSION: 1.0.0-preview2-003131
+    - CLI_VERSION: Latest
+
+install:
+  - cinst jdk8
+  - cinst 7zip
+
+build_script:
+  # .NET Core SDK binaries
+  - ps: $url = "https://dotnetcli.blob.core.windows.net/dotnet/preview/Binaries/$($env:CLI_VERSION)/dotnet-dev-win-x64.$($env:CLI_VERSION.ToLower()).zip"
+  # Download .NET Core SDK and add to PATH
+  - ps: $env:DOTNET_INSTALL_DIR = "$pwd\.dotnetsdk"
+  - ps: mkdir $env:DOTNET_INSTALL_DIR -Force | Out-Null
+  - ps: $tempFile = [System.IO.Path]::GetTempFileName()
+  - ps: (New-Object System.Net.WebClient).DownloadFile($url, $tempFile)
+  - ps: Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $env:DOTNET_INSTALL_DIR)
+  - ps: $env:Path = "$env:DOTNET_INSTALL_DIR;$env:Path"
+  # Download DynamoDB
+  - ps: $env:DYNAMODB_INSTALL_DIR = "$pwd\.dynamodb"
+  - ps: mkdir $env:DYNAMODB_INSTALL_DIR -Force | Out-Null
+  - ps: $env:DYNAMO_ARCHIVE_FILE = [System.IO.Path]::GetTempFileName()
+  - ps: (New-Object System.Net.WebClient).DownloadFile("https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz", $env:DYNAMO_ARCHIVE_FILE)
+  - cmd: 7z x %DYNAMO_ARCHIVE_FILE% -so | 7z x -aoa -si -ttar -o%DYNAMODB_INSTALL_DIR%
+  # Run local DynamoDB server
+  - ps: Start-Job { java -Djava.library.path=$env:DYNAMODB_INSTALL_DIR\DynamoDBLocal_lib -Djava.net.preferIPv4Stack=true -Xss1m -Xms320m -Xmx320m -jar $env:DYNAMODB_INSTALL_DIR\DynamoDBLocal.jar -port 8000 -inMemory }
+  # Restore, build, test
+  - ps: dotnet --info
+  - ps: dotnet restore
+  - ps: dotnet build .\src\AspNetCore.Identity.DynamoDB\project.json -c RELEASE
+  - ps: dotnet build .\samples\IdentitySample.Mvc\project.json -c RELEASE
+  - ps: dotnet build .\tests\AspNetCore.Identity.DynamoDB.Tests\project.json -c RELEASE
+  - ps: $testFramework = @{$true="netcoreapp1.0.1";$false="netcoreapp1.1"}[$env:CLI_VERSION -eq "1.0.0-preview2-003131"]
+  - ps: dotnet test .\tests\AspNetCore.Identity.DynamoDB.Tests\project.json -c RELEASE -f $testFramework --no-build
+
+test: off
+version: '0.0.0.{build}'
