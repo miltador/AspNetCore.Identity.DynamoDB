@@ -15,7 +15,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests
             var user = new DynamoIdentityUser(TestUtils.RandomString(10));
             using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-                var store = await DynamoUserStoreFactory.New<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context);
+                var store = new DynamoUserStore<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context);
 
                 // ACT
                 var result = await store.CreateAsync(user, CancellationToken.None);
