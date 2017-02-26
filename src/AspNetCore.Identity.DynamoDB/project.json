@@ -7,7 +7,7 @@
   ],
   "packOptions": {
     "projectUrl": "https://github.com/miltador/AspNetCore.Identity.DynamoDB",
-    "licenseUrl": "https://github.com/miltaodr/AspNetCore.Identity.DynamoDB/blob/master/LICENSE",
+    "licenseUrl": "https://github.com/miltador/AspNetCore.Identity.DynamoDB/blob/master/LICENSE",
     "tags": [ "identity", "dynamodb", "dynamo", "aspnetcore", "auth" ]
   },
   "dependencies": {
