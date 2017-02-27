@@ -11,10 +11,6 @@ case ${i} in
     CONFIGURATION="${i#*=}"
     shift # past argument=value
     ;;
-    -tf=*|--testframework=*)
-    TESTFRAMEWORK="${i#*=}"
-    shift # past argument=value
-    ;;
     -o=*|--outputFolder=*)
     OUTPUTFOLDER="${i#*=}"
     shift # past argument=value
@@ -37,7 +33,6 @@ done
 
 echo "BUILD VERSION = ${BUILDVERSION}"
 echo "CONFIGURATION = ${CONFIGURATION}"
-echo "TESTFRAMEWORK = ${TESTFRAMEWORK}"
 echo "OUTPUT FOLDER = ${OUTPUTFOLDER}"
 echo "PACK          = ${PACK}"
 echo "PUBLISH       = ${PUBLISH}"
@@ -46,12 +41,6 @@ if [ -z ${CONFIGURATION+x} ]
 then
     echo "No configuration is specified, defaulting to DEBUG"
     CONFIGURATION=DEBUG
-fi
-
-if [ -z ${TESTFRAMEWORK+x} ]
-then
-    echo "No test framework is specified, defaulting to netcoreapp1.1"
-    TESTFRAMEWORK=netcoreapp1.1
 fi
 
 if [ -z ${BUILDVERSION+x} ]
@@ -125,5 +114,5 @@ do
 
     # test
     echo "starting to test $projectFilePath for configration $CONFIGURATION"
-    dotnet test ${projectFilePath} --configuration ${CONFIGURATION} --framework ${TESTFRAMEWORK} --no-build || exit 1
+    dotnet test ${projectFilePath} --configuration ${CONFIGURATION} --no-build || exit 1
 done

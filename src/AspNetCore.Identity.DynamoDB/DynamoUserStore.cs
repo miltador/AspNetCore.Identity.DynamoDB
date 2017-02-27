@@ -14,6 +14,7 @@ using Amazon.DynamoDBv2.Model;
 using Amazon.Util;
 using AspNetCore.Identity.DynamoDB.Extensions;
 using Microsoft.AspNetCore.Identity;
+using Nito.AsyncEx;
 
 namespace AspNetCore.Identity.DynamoDB
 {
@@ -27,14 +28,7 @@ namespace AspNetCore.Identity.DynamoDB
         IUserPhoneNumberStore<TUser>
         where TUser : DynamoIdentityUser
     {
-        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-        private static bool _initialized;
-
-        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-        private static object _initializationLock = new object();
-
-        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-        private static object _initializationTarget;
+        private readonly AsyncLock _mutex = new AsyncLock();
 
         private readonly IDynamoDBContext _context;
 
@@ -51,7 +45,7 @@ namespace AspNetCore.Identity.DynamoDB
             }
             _context = context;
 
-            EnsureInitializedAsync(client, userTableName).GetAwaiter().GetResult();
+            EnsureInitializedAsync(client, userTableName).Wait();
         }
 
         public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
@@ -720,9 +714,10 @@ namespace AspNetCore.Identity.DynamoDB
 
         private Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
         {
-            var obj = LazyInitializer.EnsureInitialized(ref _initializationTarget, ref _initialized, ref _initializationLock, () => EnsureInitializedImplAsync(client, userTableName));
-
-            return (Task)obj;
+            using (_mutex.Lock())
+            {
+                return EnsureInitializedImplAsync(client, userTableName);
+            }
         }
 
         private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string userTableName)
