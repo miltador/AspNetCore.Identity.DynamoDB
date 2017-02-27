@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
@@ -26,10 +27,18 @@ namespace AspNetCore.Identity.DynamoDB
         IUserPhoneNumberStore<TUser>
         where TUser : DynamoIdentityUser
     {
-        private IDynamoDBContext _context;
+        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+        private static bool _initialized;
 
-	    public Task InitializeTableAsync(IAmazonDynamoDB client, IDynamoDBContext context,
-		    string userTableName = Constants.DefaultTableName)
+        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+        private static object _initializationLock = new object();
+
+        [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+        private static object _initializationTarget;
+
+        private readonly IDynamoDBContext _context;
+
+        public DynamoUserStore(IAmazonDynamoDB client, IDynamoDBContext context, string userTableName = Constants.DefaultTableName)
         {
             if(context == null)
             {
@@ -42,7 +51,7 @@ namespace AspNetCore.Identity.DynamoDB
             }
             _context = context;
 
-            return EnsureInitializedAsync(client, userTableName);
+            EnsureInitializedAsync(client, userTableName).GetAwaiter().GetResult();
         }
 
         public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
@@ -709,7 +718,14 @@ namespace AspNetCore.Identity.DynamoDB
         {
         }
 
-        private async Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
+        private Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
+        {
+            var obj = LazyInitializer.EnsureInitialized(ref _initializationTarget, ref _initialized, ref _initializationLock, () => EnsureInitializedImplAsync(client, userTableName));
+
+            return (Task)obj;
+        }
+
+        private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string userTableName)
         {
             var defaultProvisionThroughput = new ProvisionedThroughput
             {
@@ -830,17 +846,19 @@ namespace AspNetCore.Identity.DynamoDB
 
         private async Task WaitForActiveTableAsync(IAmazonDynamoDB client, string userTableName)
         {
+            bool active;
             do
             {
+	            Console.WriteLine("Waiting for the table to become active and indexes got populated...");
+	            Thread.Sleep(TimeSpan.FromSeconds(5));
+                active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
-
-	            if (Equals(response.Table.TableStatus, TableStatus.ACTIVE) &&
-	                response.Table.GlobalSecondaryIndexes.TrueForAll(g => Equals(g.IndexStatus, IndexStatus.ACTIVE)))
-		            break;
-
-	            Console.WriteLine($"Waiting for the table ${userTableName} to become active and indexes got populated...");
-	            await Task.Delay(TimeSpan.FromSeconds(5));
-            } while (true);
+	            if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
+	                !response.Table.GlobalSecondaryIndexes.TrueForAll(g => Equals(g.IndexStatus, IndexStatus.ACTIVE)))
+	            {
+		            active = false;
+	            }
+            } while (!active);
         }
 
         private async Task UpdateTableAsync(IAmazonDynamoDB client, string userTableName, List<GlobalSecondaryIndexUpdate> indexUpdates)

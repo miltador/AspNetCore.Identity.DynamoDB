@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using AspNetCore.Identity.DynamoDB.Tests.Common;
+using Microsoft.AspNetCore.Identity;
 using Xunit;
 
 namespace AspNetCore.Identity.DynamoDB.Tests
@@ -13,12 +14,11 @@ namespace AspNetCore.Identity.DynamoDB.Tests
             // ARRANGE
             using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
             {
-	            var store = new DynamoUserStore<DynamoIdentityUser>();
-	            await store.InitializeTableAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
+                var userStore = new DynamoUserStore<DynamoIdentityUser>(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName()) as IUserStore<DynamoIdentityUser>;
                 var user = new DynamoIdentityUser(TestUtils.RandomString(10));
 
                 // ACT
-                await store.CreateAsync(user, CancellationToken.None);
+                await userStore.CreateAsync(user, CancellationToken.None);
 
                 // ASSERT
                 var retrievedUser = await dbProvider.Context.LoadAsync(user);

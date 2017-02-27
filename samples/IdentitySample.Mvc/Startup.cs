@@ -56,7 +56,17 @@ namespace IdentitySample
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
-            services.AddSingleton<IUserStore<DynamoIdentityUser>>(p => new DynamoUserStore<DynamoIdentityUser>());
+            services.AddSingleton<IUserStore<DynamoIdentityUser>>(provider =>
+            {
+                var options = provider.GetService<IOptions<DynamoDbSettings>>();
+                var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
+                {
+                    ServiceURL = options.Value.ServiceUrl
+                });
+                var context = new DynamoDBContext(client);
+
+                return new DynamoUserStore<DynamoIdentityUser>(client, context, options.Value.TableName);
+            });
 
             services.Configure<IdentityOptions>(options =>
             {
@@ -140,16 +150,6 @@ namespace IdentitySample
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
-
-	        // Initialize store: create table, add global indexes, wait for table to become active
-	        var store = (DynamoUserStore<DynamoIdentityUser>)app.ApplicationServices.GetService<IUserStore<DynamoIdentityUser>>();
-	        var options = app.ApplicationServices.GetService<IOptions<DynamoDbSettings>>();
-	        var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
-	        {
-		        ServiceURL = options.Value.ServiceUrl
-	        });
-	        var context = new DynamoDBContext(client);
-	        store.InitializeTableAsync(client, context, options.Value.TableName).GetAwaiter().GetResult();
         }
 
         private void AddDefaultTokenProviders(IServiceCollection services)
@@ -172,7 +172,7 @@ namespace IdentitySample
             services.AddSingleton(provider);
         }
 
-        public class UserClaimsPrincipalFactory<TUser> : IUserClaimsPrincipalFactory<TUser>
+        public class UserClaimsPrincipalFactory<TUser> : Microsoft.AspNetCore.Identity.IUserClaimsPrincipalFactory<TUser>
             where TUser : class
         {
             public UserClaimsPrincipalFactory(
