@@ -82,7 +82,7 @@ do
     projectPath="${projectDirectory%%/}"
 
     # build
-    echo "starting to build $projectFilePath"
+    echo "starting to build $projectPath"
     dotnet build ${projectPath} --configuration ${CONFIGURATION} || exit 1
 
     # publish
@@ -110,9 +110,7 @@ done
 
 for projectDirectory in "${testProjectRootDirectories[@]}"
 do
-    projectFilePath="${projectDirectory%%/}"
-
     # test
-    echo "starting to test $projectFilePath for configuration $CONFIGURATION"
-    dotnet test ${projectFilePath} --configuration ${CONFIGURATION} --no-build || exit 1
+    echo "starting to test $projectDirectory for configuration $CONFIGURATION"
+    dotnet test ${projectDirectory}/AspNetCore.Identity.DynamoDB.Tests.csproj --configuration ${CONFIGURATION} --no-build || exit 1
 done

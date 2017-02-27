@@ -8,4 +8,4 @@ if(!(Test-Path -Path $env:DYNAMODB_INSTALL_DIR )) {
 }
 
 $args = @("-Djava.library.path=$env:DYNAMODB_INSTALL_DIR\DynamoDBLocal_lib", "-Djava.net.preferIPv4Stack=true", "-Xss1m", "-Xms320m", "-Xmx320m", "-jar", "$env:DYNAMODB_INSTALL_DIR\DynamoDBLocal.jar", "-port", "8000", "-inMemory", "-sharedDb")
-& java $args
+& java.exe $args

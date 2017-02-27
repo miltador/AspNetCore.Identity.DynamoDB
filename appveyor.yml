@@ -1,34 +1,25 @@
-os: Visual Studio 2015
-
 environment:
   AWS_ACCESS_KEY_ID: MOCK_ID
   AWS_SECRET_ACCESS_KEY: MOCK_SECRET_KEY
   AWS_SESSION_TOKEN: MOCK_SESSION_TOKEN
-  CLI_VERSION: Latest
+  CLI_VERSION: latest
 
 install:
-  - cinst jdk8
   - cinst 7zip
 
 build_script:
-  # .NET Core SDK binaries
-  - ps: $url = "https://dotnetcli.blob.core.windows.net/dotnet/preview/Binaries/$($env:CLI_VERSION)/dotnet-dev-win-x64.$($env:CLI_VERSION.ToLower()).zip"
-  # Download .NET Core SDK and add to PATH
-  - ps: $env:DOTNET_INSTALL_DIR = "$pwd\.dotnetsdk"
-  - ps: mkdir $env:DOTNET_INSTALL_DIR -Force | Out-Null
-  - ps: $tempFile = [System.IO.Path]::GetTempFileName()
-  - ps: (New-Object System.Net.WebClient).DownloadFile($url, $tempFile)
-  - ps: Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFile, $env:DOTNET_INSTALL_DIR)
-  - ps: $env:Path = "$env:DOTNET_INSTALL_DIR;$env:Path"
-  # DynamoDB
-  - ps: .\scripts\local_db.ps1
+  # Download and install .NET Core SDK
+  - ps: Invoke-Expression "powershell 'iwr https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.ps1 -UseBasicParsing | iex'"
+  - ps: $env:PATH = "C:\Users\appveyor\AppData\Local\Microsoft\dotnet\;" + $env:PATH
+  # Download and run local DynamoDB
+  - ps: Start-Process -NoNewWindow powershell .\scripts\local_db.ps1
   # Restore, build, test
   - ps: dotnet --info
   - ps: dotnet restore
   - ps: dotnet build .\src\AspNetCore.Identity.DynamoDB -c Release
   - ps: dotnet build .\samples\IdentitySample.Mvc -c Release
   - ps: dotnet build .\tests\AspNetCore.Identity.DynamoDB.Tests -c Release
-  - ps: dotnet test .\tests\AspNetCore.Identity.DynamoDB.Tests\ -c Release --no-build
+  - ps: dotnet test .\tests\AspNetCore.Identity.DynamoDB.Tests\AspNetCore.Identity.DynamoDB.Tests.csproj -c Release --no-build
 
 test: off
 version: '0.0.0.{build}'

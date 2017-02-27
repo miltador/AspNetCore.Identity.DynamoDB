@@ -1,5 +1,6 @@
 # AspNetCore.Identity.DynamoDB
-[![Build Status](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB.svg?branch=master)](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB)
+[![Travis Build Status](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB.svg?branch=master)](https://travis-ci.org/miltador/AspNetCore.Identity.DynamoDB)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/ooa12u8cdp3t0nss?svg=true)](https://ci.appveyor.com/project/miltador/aspnetcore-identity-dynamodb)
 
 [DynamoDB](https://aws.amazon.com/dynamodb/) data store adaptor for [ASP.NET Core Identity](https://github.com/aspnet/Identity),
 which allows you to build ASP.NET Core web applications, including membership, login, and user data.With this library,
