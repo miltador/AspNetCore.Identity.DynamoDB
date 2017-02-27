@@ -25,10 +25,10 @@ build_script:
   # Restore, build, test
   - ps: dotnet --info
   - ps: dotnet restore
-  - ps: dotnet build .\src\AspNetCore.Identity.DynamoDB\project.json -c RELEASE
-  - ps: dotnet build .\samples\IdentitySample.Mvc\project.json -c RELEASE
-  - ps: dotnet build .\tests\AspNetCore.Identity.DynamoDB.Tests\project.json -c RELEASE
-  - ps: dotnet test .\tests\AspNetCore.Identity.DynamoDB.Tests\project.json -c RELEASE --no-build
+  - ps: dotnet build .\src\AspNetCore.Identity.DynamoDB -c Release
+  - ps: dotnet build .\samples\IdentitySample.Mvc -c Release
+  - ps: dotnet build .\tests\AspNetCore.Identity.DynamoDB.Tests -c Release
+  - ps: dotnet test .\tests\AspNetCore.Identity.DynamoDB.Tests\ -c Release --no-build
 
 test: off
 version: '0.0.0.{build}'
