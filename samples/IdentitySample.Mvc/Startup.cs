@@ -34,13 +34,13 @@ namespace IdentitySample
             // Set up configuration sources.
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json")
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
 
-            if (env.IsDevelopment() )
+            if (env.IsDevelopment())
             {
                 // For more details on using the user secret store see http://go.microsoft.com/fwlink/?LinkID=532709
-                builder.AddUserSecrets("userSecretsId"); // https://github.com/aspnet/UserSecrets/issues/62
+                builder.AddUserSecrets<Startup>();
             }
 
             builder.AddEnvironmentVariables();
@@ -58,14 +58,7 @@ namespace IdentitySample
             services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
             services.AddSingleton<IUserStore<DynamoIdentityUser>>(provider =>
             {
-                var options = provider.GetService<IOptions<DynamoDbSettings>>();
-                var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
-                {
-                    ServiceURL = options.Value.ServiceUrl
-                });
-                var context = new DynamoDBContext(client);
-
-                return new DynamoUserStore<DynamoIdentityUser>(client, context, options.Value.TableName);
+                return new DynamoUserStore<DynamoIdentityUser>();
             });
 
             services.Configure<IdentityOptions>(options =>
@@ -150,6 +143,15 @@ namespace IdentitySample
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
+
+            var options = app.ApplicationServices.GetService<IOptions<DynamoDbSettings>>();
+            var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
+            {
+                ServiceURL = options.Value.ServiceUrl
+            });
+            var context = new DynamoDBContext(client);
+            var userStore = (DynamoUserStore<DynamoIdentityUser>)app.ApplicationServices.GetService<IUserStore<DynamoIdentityUser>>();
+            userStore.EnsureInitializedAsync(client, context, options.Value.TableName).Wait();
         }
 
         private void AddDefaultTokenProviders(IServiceCollection services)
@@ -172,7 +174,7 @@ namespace IdentitySample
             services.AddSingleton(provider);
         }
 
-        public class UserClaimsPrincipalFactory<TUser> : Microsoft.AspNetCore.Identity.IUserClaimsPrincipalFactory<TUser>
+        public class UserClaimsPrincipalFactory<TUser> : IUserClaimsPrincipalFactory<TUser>
             where TUser : class
         {
             public UserClaimsPrincipalFactory(

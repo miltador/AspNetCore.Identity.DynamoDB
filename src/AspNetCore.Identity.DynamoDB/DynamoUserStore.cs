@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
@@ -14,7 +13,6 @@ using Amazon.DynamoDBv2.Model;
 using Amazon.Util;
 using AspNetCore.Identity.DynamoDB.Extensions;
 using Microsoft.AspNetCore.Identity;
-using Nito.AsyncEx;
 
 namespace AspNetCore.Identity.DynamoDB
 {
@@ -28,25 +26,7 @@ namespace AspNetCore.Identity.DynamoDB
         IUserPhoneNumberStore<TUser>
         where TUser : DynamoIdentityUser
     {
-        private readonly AsyncLock _mutex = new AsyncLock();
-
-        private readonly IDynamoDBContext _context;
-
-        public DynamoUserStore(IAmazonDynamoDB client, IDynamoDBContext context, string userTableName = Constants.DefaultTableName)
-        {
-            if(context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            if (userTableName != Constants.DefaultTableName)
-            {
-                AWSConfigsDynamoDB.Context.AddAlias(new TableAlias(userTableName, Constants.DefaultTableName));
-            }
-            _context = context;
-
-            EnsureInitializedAsync(client, userTableName).Wait();
-        }
+        private IDynamoDBContext _context;
 
         public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
         {
@@ -88,10 +68,10 @@ namespace AspNetCore.Identity.DynamoDB
             cancellationToken.ThrowIfCancellationRequested();
 
             var user = await _context.LoadAsync<TUser>(userId, default(DateTimeOffset), cancellationToken);
-            return user.DeletedOn == default(DateTimeOffset) ? user : null;
+            return user?.DeletedOn == default(DateTimeOffset) ? user : null;
         }
 
-        public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+        public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
         {
             if (normalizedUserName == null)
             {
@@ -100,11 +80,10 @@ namespace AspNetCore.Identity.DynamoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var user = await _context.LoadAsync<TUser>(normalizedUserName, default(DateTimeOffset), new DynamoDBOperationConfig
+            return _context.LoadAsync<TUser>(normalizedUserName, default(DateTimeOffset), new DynamoDBOperationConfig
             {
                 IndexName = "NormalizedUserName-DeletedOn-index"
             }, cancellationToken);
-            return user;
         }
 
         public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -256,7 +235,7 @@ namespace AspNetCore.Identity.DynamoDB
             });
             // well, we guarantee that there will be only one record so the scan will not be so expensive
             var users = await usersSearch.GetRemainingAsync(cancellationToken);
-            return users.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
+            return users?.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
         }
 
         public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
@@ -348,7 +327,7 @@ namespace AspNetCore.Identity.DynamoDB
             });
             var users = await usersSearch.GetRemainingAsync(cancellationToken);
 
-            return users.Where(u => u.DeletedOn == default(DateTimeOffset)).ToList();
+            return users?.Where(u => u.DeletedOn == default(DateTimeOffset)).ToList();
         }
 
         public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
@@ -507,7 +486,7 @@ namespace AspNetCore.Identity.DynamoDB
             return Task.FromResult(0);
         }
 
-        public async Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+        public Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
         {
             if (normalizedEmail == null)
             {
@@ -516,11 +495,10 @@ namespace AspNetCore.Identity.DynamoDB
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var user = await _context.LoadAsync<TUser>(normalizedEmail, default(DateTimeOffset), new DynamoDBOperationConfig
+            return _context.LoadAsync<TUser>(normalizedEmail, default(DateTimeOffset), new DynamoDBOperationConfig
             {
                 IndexName = "Email.NormalizedValue-DeletedOn-index"
             }, cancellationToken);
-            return user;
         }
 
         public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
@@ -712,12 +690,16 @@ namespace AspNetCore.Identity.DynamoDB
         {
         }
 
-        private Task EnsureInitializedAsync(IAmazonDynamoDB client, string userTableName)
+        public Task EnsureInitializedAsync(IAmazonDynamoDB client, IDynamoDBContext context, string userTableName = Constants.DefaultTableName)
         {
-            using (_mutex.Lock())
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+
+            if (userTableName != Constants.DefaultTableName)
             {
-                return EnsureInitializedImplAsync(client, userTableName);
+                AWSConfigsDynamoDB.Context.AddAlias(new TableAlias(userTableName, Constants.DefaultTableName));
             }
+
+            return EnsureInitializedImplAsync(client, userTableName);
         }
 
         private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string userTableName)
@@ -792,7 +774,7 @@ namespace AspNetCore.Identity.DynamoDB
 
         private async Task CreateTableAsync(IAmazonDynamoDB client, string userTableName, ProvisionedThroughput provisionedThroughput, List<GlobalSecondaryIndex> globalSecondaryIndexes)
         {
-            await client.CreateTableAsync(new CreateTableRequest
+            var response = await client.CreateTableAsync(new CreateTableRequest
             {
                 TableName = userTableName,
                 ProvisionedThroughput = provisionedThroughput,
@@ -836,6 +818,11 @@ namespace AspNetCore.Identity.DynamoDB
                 GlobalSecondaryIndexes = globalSecondaryIndexes
             });
 
+            if (response.HttpStatusCode != HttpStatusCode.OK)
+            {
+                throw new Exception($"Couldn't create table {userTableName}");
+            }
+
             await WaitForActiveTableAsync(client, userTableName);
         }
 
@@ -844,8 +831,6 @@ namespace AspNetCore.Identity.DynamoDB
             bool active;
             do
             {
-	            Console.WriteLine("Waiting for the table to become active and indexes got populated...");
-	            Thread.Sleep(TimeSpan.FromSeconds(5));
                 active = true;
                 var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = userTableName });
 	            if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
@@ -853,6 +838,8 @@ namespace AspNetCore.Identity.DynamoDB
 	            {
 		            active = false;
 	            }
+                Console.WriteLine($"Waiting for table {userTableName} to become active...");
+                await Task.Delay(TimeSpan.FromSeconds(5));
             } while (!active);
         }
 
