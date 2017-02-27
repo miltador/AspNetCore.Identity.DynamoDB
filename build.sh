@@ -79,40 +79,40 @@ done
 # build, publish
 for projectDirectory in "${projectRootDirectories[@]}"
 do
-    projectFilePath="${projectDirectory%%/}/project.json"
+    projectPath="${projectDirectory%%/}"
 
     # build
     echo "starting to build $projectFilePath"
-    dotnet build ${projectFilePath} --configuration ${CONFIGURATION} || exit 1
+    dotnet build ${projectPath} --configuration ${CONFIGURATION} || exit 1
 
     # publish
-    echo "checking if $projectFilePath is publisable"
-    if cat ${projectFilePath} | grep '"emitEntryPoint": true' &>/dev/null
-    then
-        if [ -z ${PUBLISH+x} ]
-        then
-            echo "$projectDirectory is publishable but publish is disabled"
-        else
-            echo "starting to publish for $projectDirectory"
-            dotnet publish ${projectDirectory} --configuration ${CONFIGURATION} --output ${outputDir} --runtime active --no-build || exit 1
-        fi
-    else
-        echo "$projectFilePath is not publisable. Looking to see if it should be packed"
-        if [ -z ${PACK+x} ]
-        then
-            echo "Pack is disabled. Skipping pack on $projectDirectory"
-        else
-            echo "starting to pack for $projectDirectory"
-            dotnet pack ${projectDirectory} --configuration ${CONFIGURATION} --output ${packagesOutputDir} --no-build || exit 1
-        fi
-    fi
+    #echo "checking if $projectFilePath is publishable"
+    #if cat ${projectPath} | grep '"emitEntryPoint": true' &>/dev/null
+    #then
+    #    if [ -z ${PUBLISH+x} ]
+    #    then
+    #        echo "$projectDirectory is publishable but publish is disabled"
+    #    else
+    #        echo "starting to publish for $projectDirectory"
+    #        dotnet publish ${projectDirectory} --configuration ${CONFIGURATION} --output ${outputDir} --runtime active --no-build || exit 1
+    #    fi
+    #else
+    #    echo "$projectFilePath is not publishable. Looking to see if it should be packed"
+    #    if [ -z ${PACK+x} ]
+    #    then
+    #        echo "Pack is disabled. Skipping pack on $projectDirectory"
+    #    else
+    #        echo "starting to pack for $projectDirectory"
+    #        dotnet pack ${projectDirectory} --configuration ${CONFIGURATION} --output ${packagesOutputDir} --no-build || exit 1
+    #    fi
+    #fi
 done
 
 for projectDirectory in "${testProjectRootDirectories[@]}"
 do
-    projectFilePath="${projectDirectory%%/}/project.json"
+    projectFilePath="${projectDirectory%%/}"
 
     # test
-    echo "starting to test $projectFilePath for configration $CONFIGURATION"
+    echo "starting to test $projectFilePath for configuration $CONFIGURATION"
     dotnet test ${projectFilePath} --configuration ${CONFIGURATION} --no-build || exit 1
 done
