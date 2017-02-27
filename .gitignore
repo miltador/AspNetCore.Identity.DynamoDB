@@ -240,3 +240,5 @@ _Pvt_Extensions
 
 .idea/
 .DS_STORE
+
+.dynamodb
