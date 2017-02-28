@@ -21,7 +21,6 @@ env:
   global:
   - CLI_VERSION=latest
   - COMMIT=${TRAVIS_COMMIT::8}
-  - ARTIFACTS_PATH=./artifacts
   - AWS_ACCESS_KEY_ID=MOCK_ID
   - AWS_SECRET_ACCESS_KEY=MOCK_SECRET_KEY
   - AWS_SESSION_TOKEN=MOCK_SESSION_TOKEN
@@ -55,7 +54,7 @@ before_script:
   - dotnet --info
 
 script:
-  - ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=Release --outputFolder=$ARTIFACTS_PATH --pack
+  - ./build.sh --version=$PROJECT_BUILD_VERSION --configuration=Release --pack
 
 after_success:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [ ! -z "$TRAVIS_TAG" ] && semver $TRAVIS_TAG &>/dev/null; then ./scripts/push-to-nuget.sh --apikey=$NUGET_API_KEY --version=$PROJECT_BUILD_VERSION; fi
