@@ -58,7 +58,7 @@ namespace IdentitySample
 		{
 			services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
 			services.AddSingleton<IUserStore<DynamoIdentityUser>>(
-				provider => { return new DynamoUserStore<DynamoIdentityUser>(); });
+				provider => new DynamoUserStore<DynamoIdentityUser>());
 
 			services.Configure<IdentityOptions>(options =>
 			{
@@ -145,10 +145,12 @@ namespace IdentitySample
 			});
 
 			var options = app.ApplicationServices.GetService<IOptions<DynamoDbSettings>>();
-			var client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
-			{
-				ServiceURL = options.Value.ServiceUrl
-			});
+			var client = env.IsDevelopment()
+				? new AmazonDynamoDBClient(new AmazonDynamoDBConfig
+				{
+					ServiceURL = options.Value.ServiceUrl
+				})
+				: new AmazonDynamoDBClient();
 			var context = new DynamoDBContext(client);
 			var userStore =
 				(DynamoUserStore<DynamoIdentityUser>) app.ApplicationServices.GetService<IUserStore<DynamoIdentityUser>>();
