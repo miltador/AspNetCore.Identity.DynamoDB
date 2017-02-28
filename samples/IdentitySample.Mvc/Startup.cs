@@ -22,7 +22,9 @@ namespace IdentitySample
 	public class DynamoDbSettings
 	{
 		public string ServiceUrl { get; set; }
-		public string TableName { get; set; }
+		public string UsersTableName { get; set; }
+        public string RolesTableName { get; set; }
+        public string RoleUsersTableName { get; set; }
 	}
 
 	public class Startup
@@ -57,9 +59,15 @@ namespace IdentitySample
 		public void ConfigureServices(IServiceCollection services)
 		{
 			services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
-			services.AddSingleton<IUserStore<DynamoIdentityUser>>(
-				provider => new DynamoUserStore<DynamoIdentityUser>());
-
+            
+            services.AddSingleton<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
+            services.AddSingleton<IUserStore<DynamoIdentityUser>>(sp =>
+            {
+                var roleUsersStore = sp.GetService<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
+                return new DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>(roleUsersStore);
+            });
+            services.AddSingleton<IRoleClaimStore<DynamoIdentityRole>>(sp => new DynamoRoleStore<DynamoIdentityRole>());
+            
 			services.Configure<IdentityOptions>(options =>
 			{
 				var dataProtectionPath = Path.Combine(_env.WebRootPath, "identity-artifacts");
@@ -152,9 +160,19 @@ namespace IdentitySample
 				})
 				: new AmazonDynamoDBClient();
 			var context = new DynamoDBContext(client);
-			var userStore =
-				(DynamoUserStore<DynamoIdentityUser>) app.ApplicationServices.GetService<IUserStore<DynamoIdentityUser>>();
-			userStore.EnsureInitializedAsync(client, context, options.Value.TableName).Wait();
+
+            var userStore = app.ApplicationServices 
+                .GetService<IUserStore<DynamoIdentityUser>>()
+                as DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>;
+            var roleStore = app.ApplicationServices
+                .GetService<IRoleClaimStore<DynamoIdentityRole>>()
+                as DynamoRoleStore<DynamoIdentityRole>;
+            var roleUsersStore = app.ApplicationServices
+                .GetService<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
+
+            userStore.EnsureInitializedAsync(client, context, options.Value.UsersTableName).Wait();
+            roleStore.EnsureInitializedAsync(client, context, options.Value.RolesTableName).Wait();
+            roleUsersStore.EnsureInitializedAsync(client, context, options.Value.RoleUsersTableName).Wait();
 		}
 
 		private void AddDefaultTokenProviders(IServiceCollection services)

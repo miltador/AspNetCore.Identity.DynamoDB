@@ -16,17 +16,25 @@ using Microsoft.AspNetCore.Identity;
 
 namespace AspNetCore.Identity.DynamoDB
 {
-	public class DynamoUserStore<TUser> : IUserLoginStore<TUser>,
+	public class DynamoUserStore<TUser, TRole> : IUserLoginStore<TUser>,
 		IUserClaimStore<TUser>,
 		IUserPasswordStore<TUser>,
 		IUserSecurityStampStore<TUser>,
 		IUserTwoFactorStore<TUser>,
 		IUserEmailStore<TUser>,
 		IUserLockoutStore<TUser>,
-		IUserPhoneNumberStore<TUser>
+		IUserPhoneNumberStore<TUser>,
+        IUserRoleStore<TUser>
 		where TUser : DynamoIdentityUser
+        where TRole : DynamoIdentityRole
 	{
 		private IDynamoDBContext _context;
+        private DynamoRoleUsersStore<TRole, TUser> _roleUsersStore;
+
+        public DynamoUserStore(DynamoRoleUsersStore<TRole, TUser> roleUsersStore)
+        {
+            _roleUsersStore = roleUsersStore;
+        }
 
 		public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
 		{
@@ -214,7 +222,7 @@ namespace AspNetCore.Identity.DynamoDB
 				Limit = 1
 			});
 			var users = await search.GetRemainingAsync(cancellationToken);
-			return users?.FirstOrDefault();
+            return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
@@ -383,7 +391,7 @@ namespace AspNetCore.Identity.DynamoDB
 			cancellationToken.ThrowIfCancellationRequested();
 
 			var user = await _context.LoadAsync<TUser>(userId, default(DateTimeOffset), cancellationToken);
-			return user?.DeletedOn == default(DateTimeOffset) ? user : null;
+            return user?.DeletedOn == default(DateTimeOffset) ? user : null;
 		}
 
 		public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
@@ -410,7 +418,7 @@ namespace AspNetCore.Identity.DynamoDB
 				Limit = 1
 			});
 			var users = await search.GetRemainingAsync(cancellationToken);
-			return users?.FirstOrDefault();
+            return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -564,7 +572,7 @@ namespace AspNetCore.Identity.DynamoDB
 			});
 			// well, we guarantee that there will be only one record so the scan will not be so expensive
 			var users = await usersSearch.GetRemainingAsync(cancellationToken);
-			return users?.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
+            return users?.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
 		}
 
 		public void Dispose() {}
@@ -867,25 +875,8 @@ namespace AspNetCore.Identity.DynamoDB
 				throw new Exception($"Couldn't create table {userTableName}");
 			}
 
-			await WaitForActiveTableAsync(client, userTableName);
-		}
-
-		private async Task WaitForActiveTableAsync(IAmazonDynamoDB client, string userTableName)
-		{
-			bool active;
-			do
-			{
-				active = true;
-				var response = await client.DescribeTableAsync(new DescribeTableRequest {TableName = userTableName});
-				if (!Equals(response.Table.TableStatus, TableStatus.ACTIVE) ||
-					!response.Table.GlobalSecondaryIndexes.TrueForAll(g => Equals(g.IndexStatus, IndexStatus.ACTIVE)))
-				{
-					active = false;
-				}
-				Console.WriteLine($"Waiting for table {userTableName} to become active...");
-				await Task.Delay(TimeSpan.FromSeconds(5));
-			} while (!active);
-		}
+			await DynamoUtils.WaitForActiveTableAsync(client, userTableName);
+		}		
 
 		private async Task UpdateTableAsync(IAmazonDynamoDB client, string userTableName,
 			List<GlobalSecondaryIndexUpdate> indexUpdates)
@@ -896,7 +887,38 @@ namespace AspNetCore.Identity.DynamoDB
 				GlobalSecondaryIndexUpdates = indexUpdates
 			});
 
-			await WaitForActiveTableAsync(client, userTableName);
+			await DynamoUtils.WaitForActiveTableAsync(client, userTableName);
 		}
-	}
+
+        public Task AddToRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+        {
+            return _roleUsersStore.AddToRoleAsync(user, normalisedRoleName, cancellationToken);
+        }
+
+        public Task RemoveFromRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+        {
+            return _roleUsersStore.RemoveFromRoleAsync(user, normalisedRoleName, cancellationToken);
+        }
+
+        public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
+        {
+            return _roleUsersStore.GetRolesAsync(user, cancellationToken);
+        }
+
+        public Task<bool> IsInRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+        {
+            return _roleUsersStore.IsInRoleAsync(user, normalisedRoleName, cancellationToken);
+        }
+
+        public async Task<IList<TUser>> GetUsersInRoleAsync(string normalisedRoleName, CancellationToken cancellationToken)
+        {
+            var userIds = await _roleUsersStore.GetUserIdsInRoleAsync(normalisedRoleName, cancellationToken);
+
+            var users = (await Task.WhenAll(userIds.Select(i => FindByIdAsync(i, cancellationToken))))
+                    .Where(user => user != null)
+                    .ToList();
+
+            return users;
+        }
+    }
 }
