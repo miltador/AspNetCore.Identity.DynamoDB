@@ -190,7 +190,7 @@ namespace AspNetCore.Identity.DynamoDB
 			return Task.FromResult(0);
 		}
 
-		public Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+		public async Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
 		{
 			if (normalizedEmail == null)
 			{
@@ -199,10 +199,22 @@ namespace AspNetCore.Identity.DynamoDB
 
 			cancellationToken.ThrowIfCancellationRequested();
 
-			return _context.LoadAsync<TUser>(normalizedEmail, default(DateTimeOffset), new DynamoDBOperationConfig
+			var search = _context.FromQueryAsync<TUser>(new QueryOperationConfig
 			{
-				IndexName = "Email.NormalizedValue-DeletedOn-index"
-			}, cancellationToken);
+				IndexName = "NormalizedEmail-DeletedOn-index",
+				KeyExpression = new Expression
+				{
+					ExpressionStatement = "NormalizedEmail = :email AND DeletedOn = :deletedOn",
+					ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
+					{
+						{ ":email", normalizedEmail },
+						{ ":deletedOn", default(DateTimeOffset).ToString("o") }
+					}
+				},
+				Limit = 1
+			});
+			var users = await search.GetRemainingAsync(cancellationToken);
+			return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
@@ -212,7 +224,7 @@ namespace AspNetCore.Identity.DynamoDB
 				throw new ArgumentNullException(nameof(user));
 			}
 
-			var normalizedEmail = user.Email?.NormalizedValue;
+			var normalizedEmail = user.NormalizedEmail;
 
 			return Task.FromResult(normalizedEmail);
 		}
@@ -230,7 +242,7 @@ namespace AspNetCore.Identity.DynamoDB
 
 			if (normalizedEmail != null)
 			{
-				user.Email?.SetNormalizedEmail(normalizedEmail);
+				user.NormalizedEmail = normalizedEmail;
 			}
 
 			return Task.FromResult(0);
@@ -374,7 +386,7 @@ namespace AspNetCore.Identity.DynamoDB
 			return user?.DeletedOn == default(DateTimeOffset) ? user : null;
 		}
 
-		public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+		public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
 		{
 			if (normalizedUserName == null)
 			{
@@ -383,10 +395,22 @@ namespace AspNetCore.Identity.DynamoDB
 
 			cancellationToken.ThrowIfCancellationRequested();
 
-			return _context.LoadAsync<TUser>(normalizedUserName, default(DateTimeOffset), new DynamoDBOperationConfig
+			var search = _context.FromQueryAsync<TUser>(new QueryOperationConfig
 			{
-				IndexName = "NormalizedUserName-DeletedOn-index"
-			}, cancellationToken);
+				IndexName = "NormalizedUserName-DeletedOn-index",
+				KeyExpression = new Expression
+				{
+					ExpressionStatement = "NormalizedUserName = :name AND DeletedOn = :deletedOn",
+					ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
+					{
+						{ ":name", normalizedUserName },
+						{ ":deletedOn", default(DateTimeOffset).ToString("o") }
+					}
+				},
+				Limit = 1
+			});
+			var users = await search.GetRemainingAsync(cancellationToken);
+			return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -742,10 +766,10 @@ namespace AspNetCore.Identity.DynamoDB
 				},
 				new GlobalSecondaryIndex
 				{
-					IndexName = "Email.NormalizedValue-DeletedOn-index",
+					IndexName = "NormalizedEmail-DeletedOn-index",
 					KeySchema = new List<KeySchemaElement>
 					{
-						new KeySchemaElement("Email.NormalizedValue", KeyType.HASH),
+						new KeySchemaElement("NormalizedEmail", KeyType.HASH),
 						new KeySchemaElement("DeletedOn", KeyType.RANGE)
 					},
 					ProvisionedThroughput = defaultProvisionThroughput,
@@ -831,7 +855,7 @@ namespace AspNetCore.Identity.DynamoDB
 					},
 					new AttributeDefinition
 					{
-						AttributeName = "Email.NormalizedValue",
+						AttributeName = "NormalizedEmail",
 						AttributeType = ScalarAttributeType.S
 					}
 				},

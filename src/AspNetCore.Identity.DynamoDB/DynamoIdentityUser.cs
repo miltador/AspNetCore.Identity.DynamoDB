@@ -26,6 +26,7 @@ namespace AspNetCore.Identity.DynamoDB
 			if (email != null)
 			{
 				Email = new DynamoUserEmail(email);
+				NormalizedEmail = email.ToUpper();
 			}
 		}
 
@@ -34,6 +35,7 @@ namespace AspNetCore.Identity.DynamoDB
 			if (email != null)
 			{
 				Email = email;
+				NormalizedEmail = email.Value.ToUpper();
 			}
 		}
 
@@ -45,6 +47,7 @@ namespace AspNetCore.Identity.DynamoDB
 			}
 
 			UserName = userName;
+			NormalizedUserName = userName.ToUpper();
 			Id = Guid.NewGuid().ToString();
 			CreatedOn = DateTimeOffset.Now;
 		}
@@ -53,9 +56,14 @@ namespace AspNetCore.Identity.DynamoDB
 		public string Id { get; set; }
 
 		public string UserName { get; set; }
+
+		[DynamoDBGlobalSecondaryIndexHashKey("NormalizedUserName-DeletedOn-index")]
 		public string NormalizedUserName { get; set; }
 
 		public DynamoUserEmail Email { get; set; }
+
+		[DynamoDBGlobalSecondaryIndexHashKey("NormalizedEmail-DeletedOn-index")]
+		public string NormalizedEmail { get; set; }
 
 		public DynamoUserPhoneNumber PhoneNumber { get; set; }
 		public string PasswordHash { get; set; }
@@ -72,13 +80,14 @@ namespace AspNetCore.Identity.DynamoDB
 		public int AccessFailedCount { get; set; }
 		public bool IsLockoutEnabled { get; set; }
 
-		[DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+		[DynamoDBProperty(typeof(DateTimeOffsetConverter))]
 		public DateTimeOffset LockoutEndDate { get; set; }
 
-		[DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+		[DynamoDBProperty(typeof(DateTimeOffsetConverter))]
 		public DateTimeOffset CreatedOn { get; set; }
 
-		[DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+		[DynamoDBGlobalSecondaryIndexRangeKey("NormalizedEmail-DeletedOn-index",
+			"NormalizedUserName-DeletedOn-index", Converter = typeof(DateTimeOffsetConverter))]
 		public DateTimeOffset DeletedOn { get; set; }
 
 		[DynamoDBVersion]
@@ -107,6 +116,7 @@ namespace AspNetCore.Identity.DynamoDB
 		public virtual void SetEmail(string email)
 		{
 			var dynamoUserEmail = new DynamoUserEmail(email);
+			NormalizedEmail = email.ToUpper();
 			SetEmail(dynamoUserEmail);
 		}
 

@@ -20,7 +20,7 @@ namespace AspNetCore.Identity.DynamoDB.Models
 
 		public string Value { get; set; }
 
-		[DynamoDBProperty(Converter = typeof(DateTimeOffsetConverter))]
+		[DynamoDBProperty(typeof(DateTimeOffsetConverter))]
 		public DateTimeOffset ConfirmedOn { get; set; }
 
 		public bool Equals(DynamoUserEmail other)

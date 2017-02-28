@@ -25,6 +25,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 		public async Task DynamoIdentityUser_CanBeSavedAndRetrieved_WhenItBecomesTheSubclass()
 		{
 			var username = TestUtils.RandomString(10);
+			var email = TestUtils.RandomString(10);
 			var countryName = TestUtils.RandomString(10);
 			var loginProvider = TestUtils.RandomString(5);
 			var providerKey = TestUtils.RandomString(5);
@@ -35,6 +36,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 			user.AddClaim(claim);
 			var login = new UserLoginInfo(loginProvider, providerKey, displayName);
 			user.AddLogin(login);
+			user.SetEmail(email);
 
 			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
 			{
@@ -65,6 +67,18 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 				var retrivedLogins = userByLogin.GetLogins();
 				Assert.NotEmpty(retrivedLogins);
 				Assert.True(retrivedLogins[0].EqualsTo(login));
+
+				var userByEmail = await store.FindByEmailAsync(user.NormalizedEmail, CancellationToken.None);
+				Assert.NotNull(userByEmail);
+				var retrievedEmail = userByEmail.Email.Value;
+				Assert.NotEmpty(retrievedEmail);
+				Assert.True(retrievedEmail.Equals(email));
+
+				var userByName = await store.FindByNameAsync(user.NormalizedUserName, CancellationToken.None);
+				Assert.NotNull(userByName);
+				var retrievedUserName = userByName.UserName;
+				Assert.NotEmpty(retrievedUserName);
+				Assert.True(retrievedUserName.Equals(username));
 
 				var usersForClaims = await store.GetUsersForClaimAsync(claim, CancellationToken.None);
 				Assert.NotNull(usersForClaims);
