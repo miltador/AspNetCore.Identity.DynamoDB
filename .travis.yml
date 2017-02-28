@@ -32,16 +32,20 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install openssl; brew link --force openssl; ln -s /usr/local/opt/openssl/lib/libcrypto.1.0.0.dylib /usr/local/lib/; ln -s /usr/local/opt/openssl/lib/libssl.1.0.0.dylib /usr/local/lib/; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install jq; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install docker; eval $(docker-machine env docker); fi
 
 install:
   - npm install semver
   - export DOTNET_INSTALL_DIR="$PWD/.dotnetcli"
   - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "$CLI_VERSION" --install-dir "$DOTNET_INSTALL_DIR"
   - export PATH="$DOTNET_INSTALL_DIR:$PATH"
-  - docker pull dwmkerr/dynamodb
 
 before_script:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker pull dwmkerr/dynamodb; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker run -d -p 8000:8000 dwmkerr/dynamodb -sharedDb -inMemory; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker ps; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mkdir /tmp/dynamodb; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then wget -O - https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | tar xzC /tmp/dynamodb; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then java -Djava.library.path=/tmp/dynamodb/DynamoDBLocal_lib -Xss1m -Xms320m -Xmx320m -jar /tmp/dynamodb/DynamoDBLocal.jar -port 8000 -inMemory & fi
   - chmod u+x build.sh
   - chmod u+x ./scripts/set-build-version.sh
   - chmod u+x ./scripts/patch-version.sh
@@ -49,8 +53,6 @@ before_script:
   - eval $(./scripts/set-build-version.sh)
   - ./scripts/patch-version.sh --version=$PROJECT_BUILD_VERSION
   - export PATH=$PATH:$HOME/.local/bin
-  - docker run -d -p 8000:8000 dwmkerr/dynamodb -sharedDb -inMemory
-  - docker ps
   - dotnet --info
 
 script:
