@@ -87,7 +87,7 @@ do
 
     # publish
     echo "checking if $projectFilePath is publishable"
-    if cat ${projectPath} | grep 'NETStandard.Library' &>/dev/null
+    if cat ${projectPath} | grep 'PreserveCompilationContext' &>/dev/null
     then
         if [ -z ${PUBLISH+x} ]
         then
