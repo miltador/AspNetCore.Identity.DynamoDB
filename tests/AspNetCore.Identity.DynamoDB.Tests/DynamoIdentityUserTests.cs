@@ -10,97 +10,95 @@ using Xunit;
 
 namespace AspNetCore.Identity.DynamoDB.Tests
 {
-    public class DynamoIdentityUserTests
-    {
-        [Fact]
-        public async Task DynamoIdentityUser_CanBeSavedAndRetrieved_WhenItBecomesTheSubclass()
-        {
-            var username = TestUtils.RandomString(10);
-            var countryName = TestUtils.RandomString(10);
-            var loginProvider = TestUtils.RandomString(5);
-            var providerKey = TestUtils.RandomString(5);
-            var displayName = TestUtils.RandomString(5);
-            var myCustomThing = TestUtils.RandomString(10);
-            var user = new MyIdentityUser(username) { MyCustomThing = myCustomThing };
-	        var claim = new Claim(ClaimTypes.Country, countryName);
-            user.AddClaim(claim);
-	        var login = new UserLoginInfo(loginProvider, providerKey, displayName);
-            user.AddLogin(login);
+	public class DynamoIdentityUserTests
+	{
+		public class MyIdentityUser : DynamoIdentityUser
+		{
+			public MyIdentityUser() {}
 
-            using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
-            {
-                var store = new DynamoUserStore<MyIdentityUser>();
-                await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
+			public MyIdentityUser(string userName) : base(userName) {}
 
-                // ACT, ASSERT
-                var result = await store.CreateAsync(user, CancellationToken.None);
-                Assert.True(result.Succeeded);
+			public string MyCustomThing { get; set; }
+		}
 
-                // ACT, ASSERT
-                var retrievedUser = await store.FindByIdAsync(user.Id, CancellationToken.None);
-                Assert.NotNull(retrievedUser);
-                Assert.Equal(username, retrievedUser.UserName);
-                Assert.Equal(myCustomThing, retrievedUser.MyCustomThing);
+		[Fact]
+		public async Task DynamoIdentityUser_CanBeSavedAndRetrieved_WhenItBecomesTheSubclass()
+		{
+			var username = TestUtils.RandomString(10);
+			var countryName = TestUtils.RandomString(10);
+			var loginProvider = TestUtils.RandomString(5);
+			var providerKey = TestUtils.RandomString(5);
+			var displayName = TestUtils.RandomString(5);
+			var myCustomThing = TestUtils.RandomString(10);
+			var user = new MyIdentityUser(username) {MyCustomThing = myCustomThing};
+			var claim = new Claim(ClaimTypes.Country, countryName);
+			user.AddClaim(claim);
+			var login = new UserLoginInfo(loginProvider, providerKey, displayName);
+			user.AddLogin(login);
 
-                var countryClaim = retrievedUser.GetClaims().FirstOrDefault(x => x.Type == ClaimTypes.Country);
-                Assert.NotNull(countryClaim);
-                Assert.Equal(countryName, countryClaim.Value);
+			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
+			{
+				var store = new DynamoUserStore<MyIdentityUser>();
+				await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
-                var retrievedLoginProvider = retrievedUser.GetLogins().FirstOrDefault(x => x.LoginProvider == loginProvider);
-                Assert.NotNull(retrievedLoginProvider);
-                Assert.Equal(providerKey, retrievedLoginProvider.ProviderKey);
-                Assert.Equal(displayName, retrievedLoginProvider.ProviderDisplayName);
+				// ACT, ASSERT
+				var result = await store.CreateAsync(user, CancellationToken.None);
+				Assert.True(result.Succeeded);
 
-	            var userByLogin = await store.FindByLoginAsync(loginProvider, providerKey, CancellationToken.None);
-	            Assert.NotNull(userByLogin);
-	            var retrivedLogins = userByLogin.GetLogins();
-	            Assert.NotEmpty(retrivedLogins);
-	            Assert.True(retrivedLogins[0].EqualsTo(login));
+				// ACT, ASSERT
+				var retrievedUser = await store.FindByIdAsync(user.Id, CancellationToken.None);
+				Assert.NotNull(retrievedUser);
+				Assert.Equal(username, retrievedUser.UserName);
+				Assert.Equal(myCustomThing, retrievedUser.MyCustomThing);
 
-	            var usersForClaims = await store.GetUsersForClaimAsync(claim, CancellationToken.None);
-	            Assert.NotNull(usersForClaims);
-	            Assert.NotEmpty(usersForClaims);
-	            var userByClaim = usersForClaims[0];
-	            Assert.NotNull(userByClaim);
-	            var userClaims = userByClaim.GetClaims();
-	            Assert.NotNull(userClaims);
-	            Assert.NotEmpty(userClaims);
-	            Assert.Equal(userClaims[0].Type, claim.Type);
-	            Assert.Equal(userClaims[0].Value, claim.Value);
-            }
-        }
+				var countryClaim = retrievedUser.GetClaims().FirstOrDefault(x => x.Type == ClaimTypes.Country);
+				Assert.NotNull(countryClaim);
+				Assert.Equal(countryName, countryClaim.Value);
 
-        [Fact]
-        public async Task DynamoIdentityUser_ShouldSaveAndRetrieveTheFutureOccuranceCorrectly()
-        {
-            var lockoutEndDate = new DateTime(2018, 2, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(8996910);
-            var user = new DynamoIdentityUser(TestUtils.RandomString(10));
-            user.LockUntil(lockoutEndDate);
+				var retrievedLoginProvider = retrievedUser.GetLogins().FirstOrDefault(x => x.LoginProvider == loginProvider);
+				Assert.NotNull(retrievedLoginProvider);
+				Assert.Equal(providerKey, retrievedLoginProvider.ProviderKey);
+				Assert.Equal(displayName, retrievedLoginProvider.ProviderDisplayName);
 
-            using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
-            {
-                var store = new DynamoUserStore<DynamoIdentityUser>();
-                await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
+				var userByLogin = await store.FindByLoginAsync(loginProvider, providerKey, CancellationToken.None);
+				Assert.NotNull(userByLogin);
+				var retrivedLogins = userByLogin.GetLogins();
+				Assert.NotEmpty(retrivedLogins);
+				Assert.True(retrivedLogins[0].EqualsTo(login));
 
-                // ACT
-                var result = await store.CreateAsync(user, CancellationToken.None);
+				var usersForClaims = await store.GetUsersForClaimAsync(claim, CancellationToken.None);
+				Assert.NotNull(usersForClaims);
+				Assert.NotEmpty(usersForClaims);
+				var userByClaim = usersForClaims[0];
+				Assert.NotNull(userByClaim);
+				var userClaims = userByClaim.GetClaims();
+				Assert.NotNull(userClaims);
+				Assert.NotEmpty(userClaims);
+				Assert.Equal(userClaims[0].Type, claim.Type);
+				Assert.Equal(userClaims[0].Value, claim.Value);
+			}
+		}
 
-                // ASSERT
-                Assert.True(result.Succeeded);
-                var retrievedUser = await dbProvider.Context.LoadAsync(user);
-                Assert.Equal(user.LockoutEndDate, retrievedUser.LockoutEndDate);
-            }
-        }
+		[Fact]
+		public async Task DynamoIdentityUser_ShouldSaveAndRetrieveTheFutureOccuranceCorrectly()
+		{
+			var lockoutEndDate = new DateTime(2018, 2, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(8996910);
+			var user = new DynamoIdentityUser(TestUtils.RandomString(10));
+			user.LockUntil(lockoutEndDate);
 
-        public class MyIdentityUser : DynamoIdentityUser
-        {
-            public MyIdentityUser() { }
+			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
+			{
+				var store = new DynamoUserStore<DynamoIdentityUser>();
+				await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
-            public MyIdentityUser(string userName) : base(userName)
-            {
-            }
+				// ACT
+				var result = await store.CreateAsync(user, CancellationToken.None);
 
-            public string MyCustomThing { get; set; }
-        }
-    }
+				// ASSERT
+				Assert.True(result.Succeeded);
+				var retrievedUser = await dbProvider.Context.LoadAsync(user);
+				Assert.Equal(user.LockoutEndDate, retrievedUser.LockoutEndDate);
+			}
+		}
+	}
 }

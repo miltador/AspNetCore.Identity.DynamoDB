@@ -2,27 +2,22 @@
 
 namespace AspNetCore.Identity.DynamoDB.Models
 {
-    public class DynamoUserEmail : DynamoUserContactRecord
-    {
-        public DynamoUserEmail()
-        {
+	public class DynamoUserEmail : DynamoUserContactRecord
+	{
+		public DynamoUserEmail() {}
 
-        }
+		public DynamoUserEmail(string email) : base(email) {}
 
-        public DynamoUserEmail(string email) : base(email)
-        {
-        }
+		public string NormalizedValue { get; set; }
 
-        public string NormalizedValue { get; set; }
+		public virtual void SetNormalizedEmail(string normalizedEmail)
+		{
+			if (normalizedEmail == null)
+			{
+				throw new ArgumentNullException(nameof(normalizedEmail));
+			}
 
-        public virtual void SetNormalizedEmail(string normalizedEmail)
-        {
-            if (normalizedEmail == null)
-            {
-                throw new ArgumentNullException(nameof(normalizedEmail));
-            }
-
-            NormalizedValue = normalizedEmail;
-        }
-    }
+			NormalizedValue = normalizedEmail;
+		}
+	}
 }
