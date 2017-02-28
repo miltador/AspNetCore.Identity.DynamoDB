@@ -13,9 +13,9 @@ matrix:
   include:
     - os: linux
       dist: trusty
-      mono: none
+      mono: latest
     - os: osx
-      mono: none
+      mono: latest
 
 env:
   global:
