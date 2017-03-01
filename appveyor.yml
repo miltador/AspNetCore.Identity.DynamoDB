@@ -2,15 +2,17 @@ environment:
   AWS_ACCESS_KEY_ID: MOCK_ID
   AWS_SECRET_ACCESS_KEY: MOCK_SECRET_KEY
   AWS_SESSION_TOKEN: MOCK_SESSION_TOKEN
-  CLI_VERSION: latest
+  CLI_VERSION: 1.0.0-rc4-004771
+  DOTNET_INSTALL_DIR: ".\dotnetcli"
 
 install:
   - cinst 7zip
 
 build_script:
   # Download and install .NET Core SDK
-  - ps: Invoke-Expression "powershell 'iwr https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.ps1 -UseBasicParsing | iex'"
-  - ps: $env:PATH = "C:\Users\appveyor\AppData\Local\Microsoft\dotnet\;" + $env:PATH
+  - ps: (new-object System.Net.WebClient).DownloadFile("https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.ps1", "./dotnet.ps1")
+  - ps: powershell -noexit & .\dotnet.ps1 -Version $env:CLI_VERSION -InstallDir $env:DOTNET_INSTALL_DIR
+  - ps: $env:PATH = $env:DOTNET_INSTALL_DIR + ";" + $env:PATH
   # Download and run local DynamoDB
   - ps: Start-Process -NoNewWindow powershell .\scripts\local_db.ps1
   # Restore, build, test
