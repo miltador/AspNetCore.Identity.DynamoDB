@@ -16,6 +16,6 @@ namespace AspNetCore.Identity.DynamoDB.Tests.Common
 
 		public static string NewId() => Guid.NewGuid().ToString();
 
-		public static string NewTableName() => RandomString(5);
+		public static string NewTableName() => RandomString(15);
 	}
 }
