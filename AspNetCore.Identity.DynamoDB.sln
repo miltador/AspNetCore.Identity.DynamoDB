@@ -1,10 +1,10 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26114.2
+VisualStudioVersion = 15.0.26206.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".root", ".root", "{B45D8ABC-3D21-4A15-9F79-8A19A164CF27}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		.gitignore = .gitignore
 		LICENSE = LICENSE
 		NuGet.Config = NuGet.Config
@@ -18,12 +18,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{0F567567-75BD-499E-B137-3B60F74E483F}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
+		appveyor.yml = appveyor.yml
 		build.sh = build.sh
+		scripts\local_db.ps1 = scripts\local_db.ps1
 		scripts\patch-version.sh = scripts\patch-version.sh
 		scripts\push-to-nuget.sh = scripts\push-to-nuget.sh
 		scripts\set-build-version.sh = scripts\set-build-version.sh
-		scripts\local_db.ps1 = scripts\local_db.ps1
-		appveyor.yml = appveyor.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.Identity.DynamoDB", "src\AspNetCore.Identity.DynamoDB\AspNetCore.Identity.DynamoDB.csproj", "{593AA3BD-ED1D-493E-833F-2AB840FC322C}"
