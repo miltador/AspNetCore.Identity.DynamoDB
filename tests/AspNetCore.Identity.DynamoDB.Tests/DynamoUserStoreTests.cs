@@ -16,7 +16,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
 			{
                 var roleStore = new DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>();
-                await roleStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context);
+                await roleStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
 				var store = new DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>(roleStore);
 				await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context);

@@ -290,11 +290,6 @@ namespace AspNetCore.Identity.DynamoDB
                     {
                         AttributeName = "Id",
                         KeyType = KeyType.HASH
-                    },
-                    new KeySchemaElement
-                    {
-                        AttributeName = "DeletedOn",
-                        KeyType = KeyType.RANGE
                     }
                 },
                 AttributeDefinitions = new List<AttributeDefinition>

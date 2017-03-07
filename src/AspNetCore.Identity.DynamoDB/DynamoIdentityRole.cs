@@ -33,7 +33,7 @@ namespace AspNetCore.Identity.DynamoDB
 
         public List<string> ClaimTypes { get; set; } = new List<string>();
         public List<string> ClaimValues { get; set; } = new List<string>();
-
+		
         [DynamoDBGlobalSecondaryIndexRangeKey("NormalizedName-DeletedOn-index",
             Converter = typeof(DateTimeOffsetConverter))]
         public DateTimeOffset DeletedOn { get; set; }

@@ -15,12 +15,12 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
 			{
                 var roleStore = new DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>();
-                await roleStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context);
+                await roleStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
                 var userStore = new DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>(roleStore);
-                await userStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context);
+                await userStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
-				var generalStore = userStore as IUserStore<DynamoIdentityUser>;
+				var generalStore = (IUserStore<DynamoIdentityUser>) userStore;
 
 				var user = new DynamoIdentityUser(TestUtils.RandomString(10));
 
