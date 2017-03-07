@@ -1,6 +1,7 @@
 ﻿using System;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.Runtime;
 
 namespace AspNetCore.Identity.DynamoDB.Tests.Common
 {
@@ -14,7 +15,7 @@ namespace AspNetCore.Identity.DynamoDB.Tests.Common
 
 			public DisposableDatabase()
 			{
-                var creds = new Amazon.Runtime.BasicAWSCredentials("test", "test");
+				var creds = new BasicAWSCredentials("test", "test");
 				Client = new AmazonDynamoDBClient(creds, new AmazonDynamoDBConfig
 				{
 					ServiceURL = "http://localhost:8000"

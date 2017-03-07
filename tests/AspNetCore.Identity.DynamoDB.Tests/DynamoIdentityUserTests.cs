@@ -40,8 +40,8 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 
 			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
 			{
-                var roleUsersStore = new DynamoRoleUsersStore<DynamoIdentityRole, MyIdentityUser>();
-                await roleUsersStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
+				var roleUsersStore = new DynamoRoleUsersStore<DynamoIdentityRole, MyIdentityUser>();
+				await roleUsersStore.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
 				var store = new DynamoUserStore<MyIdentityUser, DynamoIdentityRole>(roleUsersStore);
 				await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
@@ -105,8 +105,8 @@ namespace AspNetCore.Identity.DynamoDB.Tests
 
 			using (var dbProvider = DynamoDbServerTestUtils.CreateDatabase())
 			{
-                var roleUsers = new DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>();
-                await roleUsers.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
+				var roleUsers = new DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>();
+				await roleUsers.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());
 
 				var store = new DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>(roleUsers);
 				await store.EnsureInitializedAsync(dbProvider.Client, dbProvider.Context, TestUtils.NewTableName());

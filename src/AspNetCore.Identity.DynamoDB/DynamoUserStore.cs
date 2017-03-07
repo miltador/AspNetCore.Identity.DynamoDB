@@ -24,17 +24,17 @@ namespace AspNetCore.Identity.DynamoDB
 		IUserEmailStore<TUser>,
 		IUserLockoutStore<TUser>,
 		IUserPhoneNumberStore<TUser>,
-        IUserRoleStore<TUser>
+		IUserRoleStore<TUser>
 		where TUser : DynamoIdentityUser
-        where TRole : DynamoIdentityRole
+		where TRole : DynamoIdentityRole
 	{
 		private IDynamoDBContext _context;
-        private DynamoRoleUsersStore<TRole, TUser> _roleUsersStore;
+		private readonly DynamoRoleUsersStore<TRole, TUser> _roleUsersStore;
 
-        public DynamoUserStore(DynamoRoleUsersStore<TRole, TUser> roleUsersStore)
-        {
-            _roleUsersStore = roleUsersStore;
-        }
+		public DynamoUserStore(DynamoRoleUsersStore<TRole, TUser> roleUsersStore)
+		{
+			_roleUsersStore = roleUsersStore;
+		}
 
 		public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
 		{
@@ -215,14 +215,14 @@ namespace AspNetCore.Identity.DynamoDB
 					ExpressionStatement = "NormalizedEmail = :email AND DeletedOn = :deletedOn",
 					ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
 					{
-						{ ":email", normalizedEmail },
-						{ ":deletedOn", default(DateTimeOffset).ToString("o") }
+						{":email", normalizedEmail},
+						{":deletedOn", default(DateTimeOffset).ToString("o")}
 					}
 				},
 				Limit = 1
 			});
 			var users = await search.GetRemainingAsync(cancellationToken);
-            return users?.FirstOrDefault();
+			return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
@@ -391,7 +391,7 @@ namespace AspNetCore.Identity.DynamoDB
 			cancellationToken.ThrowIfCancellationRequested();
 
 			var user = await _context.LoadAsync<TUser>(userId, default(DateTimeOffset), cancellationToken);
-            return user?.DeletedOn == default(DateTimeOffset) ? user : null;
+			return user?.DeletedOn == default(DateTimeOffset) ? user : null;
 		}
 
 		public async Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
@@ -411,14 +411,14 @@ namespace AspNetCore.Identity.DynamoDB
 					ExpressionStatement = "NormalizedUserName = :name AND DeletedOn = :deletedOn",
 					ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
 					{
-						{ ":name", normalizedUserName },
-						{ ":deletedOn", default(DateTimeOffset).ToString("o") }
+						{":name", normalizedUserName},
+						{":deletedOn", default(DateTimeOffset).ToString("o")}
 					}
 				},
 				Limit = 1
 			});
 			var users = await search.GetRemainingAsync(cancellationToken);
-            return users?.FirstOrDefault();
+			return users?.FirstOrDefault();
 		}
 
 		public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -572,7 +572,7 @@ namespace AspNetCore.Identity.DynamoDB
 			});
 			// well, we guarantee that there will be only one record so the scan will not be so expensive
 			var users = await usersSearch.GetRemainingAsync(cancellationToken);
-            return users?.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
+			return users?.FirstOrDefault(u => u.DeletedOn == default(DateTimeOffset));
 		}
 
 		public void Dispose() {}
@@ -668,6 +668,37 @@ namespace AspNetCore.Identity.DynamoDB
 			user.PhoneNumber.SetConfirmed();
 
 			return Task.FromResult(0);
+		}
+
+		public Task AddToRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+		{
+			return _roleUsersStore.AddToRoleAsync(user, normalisedRoleName, cancellationToken);
+		}
+
+		public Task RemoveFromRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+		{
+			return _roleUsersStore.RemoveFromRoleAsync(user, normalisedRoleName, cancellationToken);
+		}
+
+		public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
+		{
+			return _roleUsersStore.GetRolesAsync(user, cancellationToken);
+		}
+
+		public Task<bool> IsInRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
+		{
+			return _roleUsersStore.IsInRoleAsync(user, normalisedRoleName, cancellationToken);
+		}
+
+		public async Task<IList<TUser>> GetUsersInRoleAsync(string normalisedRoleName, CancellationToken cancellationToken)
+		{
+			var userIds = await _roleUsersStore.GetUserIdsInRoleAsync(normalisedRoleName, cancellationToken);
+
+			var users = (await Task.WhenAll(userIds.Select(i => FindByIdAsync(i, cancellationToken))))
+				.Where(user => user != null)
+				.ToList();
+
+			return users;
 		}
 
 		public Task SetSecurityStampAsync(TUser user, string stamp, CancellationToken cancellationToken)
@@ -876,7 +907,7 @@ namespace AspNetCore.Identity.DynamoDB
 			}
 
 			await DynamoUtils.WaitForActiveTableAsync(client, userTableName);
-		}		
+		}
 
 		private async Task UpdateTableAsync(IAmazonDynamoDB client, string userTableName,
 			List<GlobalSecondaryIndexUpdate> indexUpdates)
@@ -889,36 +920,5 @@ namespace AspNetCore.Identity.DynamoDB
 
 			await DynamoUtils.WaitForActiveTableAsync(client, userTableName);
 		}
-
-        public Task AddToRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
-        {
-            return _roleUsersStore.AddToRoleAsync(user, normalisedRoleName, cancellationToken);
-        }
-
-        public Task RemoveFromRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
-        {
-            return _roleUsersStore.RemoveFromRoleAsync(user, normalisedRoleName, cancellationToken);
-        }
-
-        public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
-        {
-            return _roleUsersStore.GetRolesAsync(user, cancellationToken);
-        }
-
-        public Task<bool> IsInRoleAsync(TUser user, string normalisedRoleName, CancellationToken cancellationToken)
-        {
-            return _roleUsersStore.IsInRoleAsync(user, normalisedRoleName, cancellationToken);
-        }
-
-        public async Task<IList<TUser>> GetUsersInRoleAsync(string normalisedRoleName, CancellationToken cancellationToken)
-        {
-            var userIds = await _roleUsersStore.GetUserIdsInRoleAsync(normalisedRoleName, cancellationToken);
-
-            var users = (await Task.WhenAll(userIds.Select(i => FindByIdAsync(i, cancellationToken))))
-                    .Where(user => user != null)
-                    .ToList();
-
-            return users;
-        }
-    }
+	}
 }

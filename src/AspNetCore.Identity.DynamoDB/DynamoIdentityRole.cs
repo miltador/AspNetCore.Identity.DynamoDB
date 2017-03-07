@@ -1,85 +1,84 @@
-﻿using Amazon.DynamoDBv2.DataModel;
-using AspNetCore.Identity.DynamoDB.Converters;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
+using Amazon.DynamoDBv2.DataModel;
+using AspNetCore.Identity.DynamoDB.Converters;
 
 namespace AspNetCore.Identity.DynamoDB
 {
-    [DynamoDBTable(Constants.DefaultRolesTableName)]
-    public class DynamoIdentityRole
-    {
-        public DynamoIdentityRole()
-        {
-            Id = Guid.NewGuid().ToString();
-            CreatedOn = DateTimeOffset.Now;
-        }
-        
-        public DynamoIdentityRole(string name) : this()
-        {
-            Name = name;
-            NormalizedName = name.ToUpper();
-        }
+	[DynamoDBTable(Constants.DefaultRolesTableName)]
+	public class DynamoIdentityRole
+	{
+		public DynamoIdentityRole()
+		{
+			Id = Guid.NewGuid().ToString();
+			CreatedOn = DateTimeOffset.Now;
+		}
 
-        [DynamoDBHashKey]
-        public string Id { get; set; }
+		public DynamoIdentityRole(string name) : this()
+		{
+			Name = name;
+			NormalizedName = name.ToUpper();
+		}
 
-        public string Name { get; set; }
+		[DynamoDBHashKey]
+		public string Id { get; set; }
 
-        [DynamoDBGlobalSecondaryIndexHashKey("NormalizedName-DeletedOn-index")]
-        public string NormalizedName { get; set; }
+		public string Name { get; set; }
 
-        public List<string> ClaimTypes { get; set; } = new List<string>();
-        public List<string> ClaimValues { get; set; } = new List<string>();
-		
-        [DynamoDBGlobalSecondaryIndexRangeKey("NormalizedName-DeletedOn-index",
-            Converter = typeof(DateTimeOffsetConverter))]
-        public DateTimeOffset DeletedOn { get; set; }
+		[DynamoDBGlobalSecondaryIndexHashKey("NormalizedName-DeletedOn-index")]
+		public string NormalizedName { get; set; }
 
-        [DynamoDBProperty(typeof(DateTimeOffsetConverter))]
-        public DateTimeOffset CreatedOn { get; set; }
+		public List<string> ClaimTypes { get; set; } = new List<string>();
+		public List<string> ClaimValues { get; set; } = new List<string>();
 
-        [DynamoDBVersion]
-        public int? VersionNumber { get; set; }
+		[DynamoDBGlobalSecondaryIndexRangeKey("NormalizedName-DeletedOn-index",
+			Converter = typeof(DateTimeOffsetConverter))]
+		public DateTimeOffset DeletedOn { get; set; }
 
-        public void Delete()
-        {
-            if (DeletedOn != default(DateTimeOffset))
-            {
-                throw new InvalidOperationException($"Role '{Id}' has already been deleted.");
-            }
+		[DynamoDBProperty(typeof(DateTimeOffsetConverter))]
+		public DateTimeOffset CreatedOn { get; set; }
 
-            DeletedOn = DateTimeOffset.Now;
-        }
+		[DynamoDBVersion]
+		public int? VersionNumber { get; set; }
 
-        public virtual void AddClaim(Claim claim)
-        {
-            if (claim == null)
-            {
-                throw new ArgumentNullException(nameof(claim));
-            }
+		public void Delete()
+		{
+			if (DeletedOn != default(DateTimeOffset))
+			{
+				throw new InvalidOperationException($"Role '{Id}' has already been deleted.");
+			}
 
-            ClaimTypes.Add(claim.Type);
-            ClaimValues.Add(claim.Value);
-        }
+			DeletedOn = DateTimeOffset.Now;
+		}
 
-        public virtual IList<Claim> GetClaims()
-        {
-            return ClaimTypes.Select((t, i) => new Claim(t, ClaimValues[i])).ToList();
-        }
+		public virtual void AddClaim(Claim claim)
+		{
+			if (claim == null)
+			{
+				throw new ArgumentNullException(nameof(claim));
+			}
 
-        public virtual void RemoveClaim(Claim claim)
-        {
-            if (claim == null)
-            {
-                throw new ArgumentNullException(nameof(claim));
-            }
+			ClaimTypes.Add(claim.Type);
+			ClaimValues.Add(claim.Value);
+		}
 
-            var index = ClaimTypes.IndexOf(claim.Type);
-            ClaimTypes.Remove(claim.Type);
-            ClaimValues.RemoveAt(index);
-        }
-    }
+		public virtual IList<Claim> GetClaims()
+		{
+			return ClaimTypes.Select((t, i) => new Claim(t, ClaimValues[i])).ToList();
+		}
+
+		public virtual void RemoveClaim(Claim claim)
+		{
+			if (claim == null)
+			{
+				throw new ArgumentNullException(nameof(claim));
+			}
+
+			var index = ClaimTypes.IndexOf(claim.Type);
+			ClaimTypes.Remove(claim.Type);
+			ClaimValues.RemoveAt(index);
+		}
+	}
 }

@@ -1,336 +1,333 @@
-﻿using Microsoft.AspNetCore.Identity;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
-using Amazon.DynamoDBv2.DataModel;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.Model;
-using System.Net;
 using Amazon;
-using Amazon.Util;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
+using Amazon.Util;
+using Microsoft.AspNetCore.Identity;
 
 namespace AspNetCore.Identity.DynamoDB
 {
-    public class DynamoRoleStore<TRole> : IRoleClaimStore<TRole>
-        where TRole : DynamoIdentityRole
-    {
-        private IDynamoDBContext _context;
+	public class DynamoRoleStore<TRole> : IRoleClaimStore<TRole>
+		where TRole : DynamoIdentityRole
+	{
+		private IDynamoDBContext _context;
 
-        public Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+		public Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            return Task.FromResult(role.GetClaims());
-        }
+			return Task.FromResult(role.GetClaims());
+		}
 
-        public Task AddClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+		public Task AddClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            if (claim == null)
-            {
-                throw new ArgumentNullException(nameof(claim));
-            }
+			if (claim == null)
+			{
+				throw new ArgumentNullException(nameof(claim));
+			}
 
-            role.AddClaim(claim);
+			role.AddClaim(claim);
 
-            return Task.FromResult(0);
-        }
+			return Task.FromResult(0);
+		}
 
-        public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+		public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            if (claim == null)
-            {
-                throw new ArgumentNullException(nameof(claim));
-            }
+			if (claim == null)
+			{
+				throw new ArgumentNullException(nameof(claim));
+			}
 
-            role.RemoveClaim(claim);
+			role.RemoveClaim(claim);
 
-            return Task.FromResult(0);
-        }
+			return Task.FromResult(0);
+		}
 
-        public async Task<IdentityResult> CreateAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+		public async Task<IdentityResult> CreateAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            cancellationToken.ThrowIfCancellationRequested();
-            
-            await _context.SaveAsync(role, cancellationToken);
+			cancellationToken.ThrowIfCancellationRequested();
 
-            return IdentityResult.Success;
-        }
+			await _context.SaveAsync(role, cancellationToken);
 
-        public async Task<IdentityResult> UpdateAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+			return IdentityResult.Success;
+		}
 
-            cancellationToken.ThrowIfCancellationRequested();
+		public async Task<IdentityResult> UpdateAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            await _context.SaveAsync(role, cancellationToken);
+			cancellationToken.ThrowIfCancellationRequested();
 
-            return IdentityResult.Success;
-        }
+			await _context.SaveAsync(role, cancellationToken);
 
-        public async Task<IdentityResult> DeleteAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+			return IdentityResult.Success;
+		}
 
-            cancellationToken.ThrowIfCancellationRequested();
+		public async Task<IdentityResult> DeleteAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-            role.Delete();
+			cancellationToken.ThrowIfCancellationRequested();
 
-            await _context.SaveAsync(role, cancellationToken);
+			role.Delete();
 
-            return IdentityResult.Success;
-        }
+			await _context.SaveAsync(role, cancellationToken);
 
-        public Task<string> GetRoleIdAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+			return IdentityResult.Success;
+		}
 
-            return Task.FromResult(role.Id);
-        }
+		public Task<string> GetRoleIdAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-        public Task<string> GetRoleNameAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+			return Task.FromResult(role.Id);
+		}
 
-            return Task.FromResult(role.Name);
-        }
+		public Task<string> GetRoleNameAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-        public Task SetRoleNameAsync(TRole role, string roleName, CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException("Changing the role name is not supported.");
-        }
+			return Task.FromResult(role.Name);
+		}
 
-        public Task<string> GetNormalizedRoleNameAsync(TRole role, CancellationToken cancellationToken)
-        {
-            if (role == null)
-            {
-                throw new ArgumentNullException(nameof(role));
-            }
+		public Task SetRoleNameAsync(TRole role, string roleName, CancellationToken cancellationToken)
+		{
+			throw new NotSupportedException("Changing the role name is not supported.");
+		}
 
-            return Task.FromResult(role.NormalizedName);
-        }
+		public Task<string> GetNormalizedRoleNameAsync(TRole role, CancellationToken cancellationToken)
+		{
+			if (role == null)
+			{
+				throw new ArgumentNullException(nameof(role));
+			}
 
-        public Task SetNormalizedRoleNameAsync(TRole role, string normalizedName, CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException("Changing the role normalized name is not supported.");
-        }
+			return Task.FromResult(role.NormalizedName);
+		}
 
-        public async Task<TRole> FindByIdAsync(string roleId, CancellationToken cancellationToken)
-        {
-            if (roleId == null)
-            {
-                throw new ArgumentNullException(nameof(roleId));
-            }
+		public Task SetNormalizedRoleNameAsync(TRole role, string normalizedName, CancellationToken cancellationToken)
+		{
+			throw new NotSupportedException("Changing the role normalized name is not supported.");
+		}
 
-            cancellationToken.ThrowIfCancellationRequested();
+		public async Task<TRole> FindByIdAsync(string roleId, CancellationToken cancellationToken)
+		{
+			if (roleId == null)
+			{
+				throw new ArgumentNullException(nameof(roleId));
+			}
 
-            var role = await _context.LoadAsync<TRole>(roleId, default(DateTimeOffset), cancellationToken);
-            return role?.DeletedOn == default(DateTimeOffset) ? role : null;
-        }
+			cancellationToken.ThrowIfCancellationRequested();
 
-        public async Task<TRole> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
-        {
-            if (normalizedRoleName == null)
-            {
-                throw new ArgumentNullException(nameof(normalizedRoleName));
-            }
+			var role = await _context.LoadAsync<TRole>(roleId, default(DateTimeOffset), cancellationToken);
+			return role?.DeletedOn == default(DateTimeOffset) ? role : null;
+		}
 
-            cancellationToken.ThrowIfCancellationRequested();
+		public async Task<TRole> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
+		{
+			if (normalizedRoleName == null)
+			{
+				throw new ArgumentNullException(nameof(normalizedRoleName));
+			}
 
-            var search = _context.FromQueryAsync<TRole>(new QueryOperationConfig
-            {
-                IndexName = "NormalizedName-DeletedOn-index",
-                KeyExpression = new Expression
-                {
-                    ExpressionStatement = "NormalizedName = :name AND DeletedOn = :deletedOn",
-                    ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
-                    {
-                        { ":name", normalizedRoleName },
-                        { ":deletedOn", default(DateTimeOffset).ToString("o") }
-                    }
-                },
-                Limit = 1
-            });
-            var roles = await search.GetRemainingAsync(cancellationToken);
-            return roles?.FirstOrDefault();
-        }
+			cancellationToken.ThrowIfCancellationRequested();
 
-        public void Dispose()
-        {
-        }
+			var search = _context.FromQueryAsync<TRole>(new QueryOperationConfig
+			{
+				IndexName = "NormalizedName-DeletedOn-index",
+				KeyExpression = new Expression
+				{
+					ExpressionStatement = "NormalizedName = :name AND DeletedOn = :deletedOn",
+					ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
+					{
+						{":name", normalizedRoleName},
+						{":deletedOn", default(DateTimeOffset).ToString("o")}
+					}
+				},
+				Limit = 1
+			});
+			var roles = await search.GetRemainingAsync(cancellationToken);
+			return roles?.FirstOrDefault();
+		}
 
-        public Task EnsureInitializedAsync(IAmazonDynamoDB client, IDynamoDBContext context,
-            string rolesTableName = Constants.DefaultRolesTableName)
-        {
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
+		public void Dispose() {}
 
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+		public Task EnsureInitializedAsync(IAmazonDynamoDB client, IDynamoDBContext context,
+			string rolesTableName = Constants.DefaultRolesTableName)
+		{
+			if (client == null)
+			{
+				throw new ArgumentNullException(nameof(client));
+			}
 
-            _context = context;
+			if (context == null)
+			{
+				throw new ArgumentNullException(nameof(context));
+			}
 
-            if (rolesTableName != Constants.DefaultRolesTableName)
-            {
-                AWSConfigsDynamoDB.Context.AddAlias(new TableAlias(rolesTableName, Constants.DefaultRolesTableName));
-            }
+			_context = context;
 
-            return EnsureInitializedImplAsync(client, rolesTableName);
-        }
+			if (rolesTableName != Constants.DefaultRolesTableName)
+			{
+				AWSConfigsDynamoDB.Context.AddAlias(new TableAlias(rolesTableName, Constants.DefaultRolesTableName));
+			}
 
-        private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string rolesTableName)
-        {
-            var defaultProvisionThroughput = new ProvisionedThroughput
-            {
-                ReadCapacityUnits = 5,
-                WriteCapacityUnits = 5
-            };
-            var globalSecondaryIndexes = new List<GlobalSecondaryIndex>
-            {
-                new GlobalSecondaryIndex
-                {
-                    IndexName = "NormalizedName-DeletedOn-index",
-                    KeySchema = new List<KeySchemaElement>
-                    {
-                        new KeySchemaElement("NormalizedName", KeyType.HASH),
-                        new KeySchemaElement("DeletedOn", KeyType.RANGE)
-                    },
-                    ProvisionedThroughput = defaultProvisionThroughput,
-                    Projection = new Projection
-                    {
-                        ProjectionType = ProjectionType.ALL
-                    }
-                }
-            };
+			return EnsureInitializedImplAsync(client, rolesTableName);
+		}
 
-            var tablesResponse = await client.ListTablesAsync();
-            if (tablesResponse.HttpStatusCode != HttpStatusCode.OK)
-            {
-                throw new Exception("Couldn't get list of tables");
-            }
-            var tableNames = tablesResponse.TableNames;
+		private async Task EnsureInitializedImplAsync(IAmazonDynamoDB client, string rolesTableName)
+		{
+			var defaultProvisionThroughput = new ProvisionedThroughput
+			{
+				ReadCapacityUnits = 5,
+				WriteCapacityUnits = 5
+			};
+			var globalSecondaryIndexes = new List<GlobalSecondaryIndex>
+			{
+				new GlobalSecondaryIndex
+				{
+					IndexName = "NormalizedName-DeletedOn-index",
+					KeySchema = new List<KeySchemaElement>
+					{
+						new KeySchemaElement("NormalizedName", KeyType.HASH),
+						new KeySchemaElement("DeletedOn", KeyType.RANGE)
+					},
+					ProvisionedThroughput = defaultProvisionThroughput,
+					Projection = new Projection
+					{
+						ProjectionType = ProjectionType.ALL
+					}
+				}
+			};
 
-            if (!tableNames.Contains(rolesTableName))
-            {
-                await CreateTableAsync(client, rolesTableName, defaultProvisionThroughput, globalSecondaryIndexes);
-                return;
-            }
+			var tablesResponse = await client.ListTablesAsync();
+			if (tablesResponse.HttpStatusCode != HttpStatusCode.OK)
+			{
+				throw new Exception("Couldn't get list of tables");
+			}
+			var tableNames = tablesResponse.TableNames;
 
-            var response = await client.DescribeTableAsync(new DescribeTableRequest { TableName = rolesTableName });
-            var table = response.Table;
+			if (!tableNames.Contains(rolesTableName))
+			{
+				await CreateTableAsync(client, rolesTableName, defaultProvisionThroughput, globalSecondaryIndexes);
+				return;
+			}
 
-            var indexesToAdd =
-                globalSecondaryIndexes.Where(
-                    g => !table.GlobalSecondaryIndexes.Exists(gd => gd.IndexName.Equals(g.IndexName)));
-            var indexUpdates = indexesToAdd.Select(index => new GlobalSecondaryIndexUpdate
-            {
-                Create = new CreateGlobalSecondaryIndexAction
-                {
-                    IndexName = index.IndexName,
-                    KeySchema = index.KeySchema,
-                    ProvisionedThroughput = index.ProvisionedThroughput,
-                    Projection = index.Projection
-                }
-            }).ToList();
+			var response = await client.DescribeTableAsync(new DescribeTableRequest {TableName = rolesTableName});
+			var table = response.Table;
 
-            if (indexUpdates.Count > 0)
-            {
-                await UpdateTableAsync(client, rolesTableName, indexUpdates);
-            }
-        }
+			var indexesToAdd =
+				globalSecondaryIndexes.Where(
+					g => !table.GlobalSecondaryIndexes.Exists(gd => gd.IndexName.Equals(g.IndexName)));
+			var indexUpdates = indexesToAdd.Select(index => new GlobalSecondaryIndexUpdate
+			{
+				Create = new CreateGlobalSecondaryIndexAction
+				{
+					IndexName = index.IndexName,
+					KeySchema = index.KeySchema,
+					ProvisionedThroughput = index.ProvisionedThroughput,
+					Projection = index.Projection
+				}
+			}).ToList();
 
-        private async Task CreateTableAsync(IAmazonDynamoDB client, string rolesTableName,
-            ProvisionedThroughput provisionedThroughput, List<GlobalSecondaryIndex> globalSecondaryIndexes)
-        {
-            var response = await client.CreateTableAsync(new CreateTableRequest
-            {
-                TableName = rolesTableName,
-                ProvisionedThroughput = provisionedThroughput,
-                KeySchema = new List<KeySchemaElement>
-                {
-                    new KeySchemaElement
-                    {
-                        AttributeName = "Id",
-                        KeyType = KeyType.HASH
-                    }
-                },
-                AttributeDefinitions = new List<AttributeDefinition>
-                {
-                    new AttributeDefinition
-                    {
-                        AttributeName = "Id",
-                        AttributeType = ScalarAttributeType.S
-                    },
-                    new AttributeDefinition
-                    {
-                        AttributeName = "DeletedOn",
-                        AttributeType = ScalarAttributeType.S
-                    },
-                    new AttributeDefinition
-                    {
-                        AttributeName = "NormalizedName",
-                        AttributeType = ScalarAttributeType.S
-                    }
-                },
-                GlobalSecondaryIndexes = globalSecondaryIndexes
-            });
+			if (indexUpdates.Count > 0)
+			{
+				await UpdateTableAsync(client, rolesTableName, indexUpdates);
+			}
+		}
 
-            if (response.HttpStatusCode != HttpStatusCode.OK)
-            {
-                throw new Exception($"Couldn't create table {rolesTableName}");
-            }
+		private async Task CreateTableAsync(IAmazonDynamoDB client, string rolesTableName,
+			ProvisionedThroughput provisionedThroughput, List<GlobalSecondaryIndex> globalSecondaryIndexes)
+		{
+			var response = await client.CreateTableAsync(new CreateTableRequest
+			{
+				TableName = rolesTableName,
+				ProvisionedThroughput = provisionedThroughput,
+				KeySchema = new List<KeySchemaElement>
+				{
+					new KeySchemaElement
+					{
+						AttributeName = "Id",
+						KeyType = KeyType.HASH
+					}
+				},
+				AttributeDefinitions = new List<AttributeDefinition>
+				{
+					new AttributeDefinition
+					{
+						AttributeName = "Id",
+						AttributeType = ScalarAttributeType.S
+					},
+					new AttributeDefinition
+					{
+						AttributeName = "DeletedOn",
+						AttributeType = ScalarAttributeType.S
+					},
+					new AttributeDefinition
+					{
+						AttributeName = "NormalizedName",
+						AttributeType = ScalarAttributeType.S
+					}
+				},
+				GlobalSecondaryIndexes = globalSecondaryIndexes
+			});
 
-            await DynamoUtils.WaitForActiveTableAsync(client, rolesTableName);
-        }
+			if (response.HttpStatusCode != HttpStatusCode.OK)
+			{
+				throw new Exception($"Couldn't create table {rolesTableName}");
+			}
 
-        private async Task UpdateTableAsync(IAmazonDynamoDB client, string rolesTableName,
-            List<GlobalSecondaryIndexUpdate> indexUpdates)
-        {
-            await client.UpdateTableAsync(new UpdateTableRequest
-            {
-                TableName = rolesTableName,
-                GlobalSecondaryIndexUpdates = indexUpdates
-            });
+			await DynamoUtils.WaitForActiveTableAsync(client, rolesTableName);
+		}
 
-            await DynamoUtils.WaitForActiveTableAsync(client, rolesTableName);
-        }
-    }
+		private async Task UpdateTableAsync(IAmazonDynamoDB client, string rolesTableName,
+			List<GlobalSecondaryIndexUpdate> indexUpdates)
+		{
+			await client.UpdateTableAsync(new UpdateTableRequest
+			{
+				TableName = rolesTableName,
+				GlobalSecondaryIndexUpdates = indexUpdates
+			});
+
+			await DynamoUtils.WaitForActiveTableAsync(client, rolesTableName);
+		}
+	}
 }
