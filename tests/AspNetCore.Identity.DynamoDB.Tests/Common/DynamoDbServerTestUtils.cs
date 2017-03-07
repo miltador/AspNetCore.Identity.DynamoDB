@@ -14,7 +14,8 @@ namespace AspNetCore.Identity.DynamoDB.Tests.Common
 
 			public DisposableDatabase()
 			{
-				Client = new AmazonDynamoDBClient(new AmazonDynamoDBConfig
+                var creds = new Amazon.Runtime.BasicAWSCredentials("test", "test");
+				Client = new AmazonDynamoDBClient(creds, new AmazonDynamoDBConfig
 				{
 					ServiceURL = "http://localhost:8000"
 				});
