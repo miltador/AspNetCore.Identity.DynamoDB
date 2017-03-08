@@ -43,7 +43,7 @@ namespace AspNetCore.Identity.DynamoDB
 
 		public DynamoDBIdentityBuilder<TUser, TRole> AddRoleStore<T>() where T : class
 		{
-			return AddSingleton(typeof(IRoleClaimStore<>).MakeGenericType(RoleType), typeof(T));
+			return AddSingleton(typeof(IRoleStore<>).MakeGenericType(RoleType), typeof(T));
 		}
 
 		public DynamoDBIdentityBuilder<TUser, TRole> AddRoleStore()
