@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -60,13 +60,10 @@ namespace IdentitySample
 		{
 			services.Configure<DynamoDbSettings>(Configuration.GetSection("DynamoDB"));
 
-			services.AddSingleton<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
-			services.AddSingleton<IUserStore<DynamoIdentityUser>>(sp =>
-			{
-				var roleUsersStore = sp.GetService<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
-				return new DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>(roleUsersStore);
-			});
-			services.AddSingleton<IRoleClaimStore<DynamoIdentityRole>>(sp => new DynamoRoleStore<DynamoIdentityRole>());
+			services.AddDynamoDBIdentity<DynamoIdentityUser, DynamoIdentityRole>()
+				.AddUserStore()
+				.AddRoleStore()
+				.AddRoleUsersStore();
 
 			services.Configure<IdentityOptions>(options =>
 			{
@@ -165,7 +162,7 @@ namespace IdentitySample
 					.GetService<IUserStore<DynamoIdentityUser>>()
 				as DynamoUserStore<DynamoIdentityUser, DynamoIdentityRole>;
 			var roleStore = app.ApplicationServices
-					.GetService<IRoleClaimStore<DynamoIdentityRole>>()
+					.GetService<IRoleStore<DynamoIdentityRole>>()
 				as DynamoRoleStore<DynamoIdentityRole>;
 			var roleUsersStore = app.ApplicationServices
 				.GetService<DynamoRoleUsersStore<DynamoIdentityRole, DynamoIdentityUser>>();
@@ -204,7 +201,7 @@ namespace IdentitySample
 				{
 					throw new ArgumentNullException(nameof(userManager));
 				}
-				if (optionsAccessor == null || optionsAccessor.Value == null)
+				if (optionsAccessor?.Value == null)
 				{
 					throw new ArgumentNullException(nameof(optionsAccessor));
 				}
