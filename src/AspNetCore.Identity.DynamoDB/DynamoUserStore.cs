@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -120,12 +120,21 @@ namespace AspNetCore.Identity.DynamoDB
 
 			var usersSearch = _context.ScanAsync<TUser>(new List<ScanCondition>
 			{
-				new ScanCondition("ClaimTypes", ScanOperator.Contains, claim.Type),
-				new ScanCondition("ClaimValues", ScanOperator.Contains, claim.Value)
+				new ScanCondition("ClaimTypes", ScanOperator.Contains, claim.Type)
 			});
-			var users = await usersSearch.GetRemainingAsync(cancellationToken);
 
-			return users?.Where(u => u.DeletedOn == default(DateTimeOffset)).ToList();
+			var users = await usersSearch.GetRemainingAsync(cancellationToken);
+			if (users == null)
+			{
+				users = new List<TUser>();
+			}
+
+			var results = from u in users
+						  where u.DeletedOn == default(DateTimeOffset)
+						  where u.HasClaim(claim)
+						  select u;
+
+			return results.ToList();
 		}
 
 		public Task SetEmailAsync(TUser user, string email, CancellationToken cancellationToken)

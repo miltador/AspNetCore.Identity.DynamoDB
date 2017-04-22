@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -6,9 +6,23 @@ using Amazon.DynamoDBv2.DataModel;
 using AspNetCore.Identity.DynamoDB.Converters;
 using AspNetCore.Identity.DynamoDB.Models;
 using Microsoft.AspNetCore.Identity;
+using Newtonsoft.Json;
 
 namespace AspNetCore.Identity.DynamoDB
 {
+	public class ClaimsEntry
+	{
+		public int Index { get; set; } = -1;
+
+		public string ClaimType { get; set; }
+
+		public IList<string> ClaimValues { get; set; } = new List<string>();
+
+		public IEnumerable<Claim> GetClaims() {
+			return from v in ClaimValues select new Claim(ClaimType, v);
+		}
+	}
+
 	[DynamoDBTable(Constants.DefaultTableName)]
 	public class DynamoIdentityUser
 	{
@@ -170,6 +184,12 @@ namespace AspNetCore.Identity.DynamoDB
 		{
 			LockoutEndDate = lockoutEndDate;
 		}
+		
+		public virtual bool HasClaim(Claim claim)
+		{
+			var entry = GetClaimsEntryByType(claim.Type);
+			return entry.ClaimValues.Contains(claim.Value);
+		}
 
 		public virtual void AddClaim(Claim claim)
 		{
@@ -178,13 +198,61 @@ namespace AspNetCore.Identity.DynamoDB
 				throw new ArgumentNullException(nameof(claim));
 			}
 
-			ClaimTypes.Add(claim.Type);
-			ClaimValues.Add(claim.Value);
+			var entry = GetClaimsEntryByType(claim.Type);
+			entry.ClaimValues.Add(claim.Value);
+			SaveClaimEntry(entry);
+		}
+
+		void SaveClaimEntry(ClaimsEntry entry)
+		{
+			if (entry.ClaimValues.Any())
+			{
+				var values = JsonConvert.SerializeObject(entry.ClaimValues);
+
+				if (entry.Index == -1)
+				{
+					ClaimTypes.Add(entry.ClaimType);
+					ClaimValues.Add(values);
+				} else {
+					ClaimValues[entry.Index] = values;
+				}
+			}
+			else if (entry.Index != -1)
+			{
+				ClaimTypes.RemoveAt(entry.Index);
+				ClaimValues.RemoveAt(entry.Index);
+			}
+		}
+
+		IEnumerable<ClaimsEntry> GetClaimsEntries()
+		{
+			return ClaimTypes.Select((t, i) => new ClaimsEntry {
+				Index = i,
+				ClaimType = t,
+				ClaimValues = JsonConvert.DeserializeObject<IList<string>>(ClaimValues[i])
+			});
+		}
+
+	    ClaimsEntry GetClaimsEntryByType(string type)
+		{
+			return (
+				from e in GetClaimsEntries() 
+				where e.ClaimType == type 
+				select e
+			)
+			.DefaultIfEmpty(new ClaimsEntry {
+				ClaimType = type
+			})
+			.First();
 		}
 
 		public virtual IList<Claim> GetClaims()
 		{
-			return ClaimTypes.Select((t, i) => new Claim(t, ClaimValues[i])).ToList();
+			return (
+				from e in GetClaimsEntries() 
+				from v in e.ClaimValues 
+				select new Claim(e.ClaimType, v)
+			).ToList();
 		}
 
 		public virtual void RemoveClaim(Claim claim)
@@ -194,9 +262,9 @@ namespace AspNetCore.Identity.DynamoDB
 				throw new ArgumentNullException(nameof(claim));
 			}
 
-			var index = ClaimTypes.IndexOf(claim.Type);
-			ClaimTypes.Remove(claim.Type);
-			ClaimValues.RemoveAt(index);
+			var entry = GetClaimsEntryByType(claim.Type);
+			entry.ClaimValues.Remove(claim.Value);
+			SaveClaimEntry(entry);
 		}
 
 		public virtual void AddLogin(UserLoginInfo loginInfo)
