@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -11,6 +11,7 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Util;
+using AspNetCore.Identity.DynamoDB.Extensions;
 using Microsoft.AspNetCore.Identity;
 
 namespace AspNetCore.Identity.DynamoDB
@@ -238,12 +239,7 @@ namespace AspNetCore.Identity.DynamoDB
 				}
 			};
 
-			var tablesResponse = await client.ListTablesAsync();
-			if (tablesResponse.HttpStatusCode != HttpStatusCode.OK)
-			{
-				throw new Exception("Couldn't get list of tables");
-			}
-			var tableNames = tablesResponse.TableNames;
+			var tableNames = await client.ListAllTablesAsync();
 
 			if (!tableNames.Contains(rolesTableName))
 			{
