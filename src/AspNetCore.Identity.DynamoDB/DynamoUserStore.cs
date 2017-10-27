@@ -818,13 +818,8 @@ namespace AspNetCore.Identity.DynamoDB
 					}
 				}
 			};
-
-			var tablesResponse = await client.ListTablesAsync();
-			if (tablesResponse.HttpStatusCode != HttpStatusCode.OK)
-			{
-				throw new Exception("Couldn't get list of tables");
-			}
-			var tableNames = tablesResponse.TableNames;
+			
+			var tableNames = await client.ListAllTablesAsync();
 
 			if (!tableNames.Contains(userTableName))
 			{
