@@ -29,28 +29,15 @@ namespace IdentitySample
 
 	public class Startup
 	{
+		
 		private readonly IHostingEnvironment _env;
-
-		public Startup(IHostingEnvironment env)
+		public Startup(IConfiguration configuration)
 		{
-			// Set up configuration sources.
-			var builder = new ConfigurationBuilder()
-				.SetBasePath(env.ContentRootPath)
-				.AddJsonFile("appsettings.json", false, true)
-				.AddJsonFile($"appsettings.{env.EnvironmentName}.json", true);
-
-			if (env.IsDevelopment())
-			{
-				// For more details on using the user secret store see http://go.microsoft.com/fwlink/?LinkID=532709
-				builder.AddUserSecrets<Startup>();
-			}
-
-			builder.AddEnvironmentVariables();
-			Configuration = builder.Build();
-			_env = env;
+			Configuration = configuration;
 		}
 
-		public IConfigurationRoot Configuration { get; set; }
+		public IConfiguration Configuration { get; }
+
 
 		/// <summary>
 		///     see:
@@ -65,28 +52,44 @@ namespace IdentitySample
 				.AddRoleStore()
 				.AddRoleUsersStore();
 
-			services.Configure<IdentityOptions>(options =>
-			{
-				var dataProtectionPath = Path.Combine(_env.WebRootPath, "identity-artifacts");
-				options.Cookies.ApplicationCookie.AuthenticationScheme = "ApplicationCookie";
-				options.Cookies.ApplicationCookie.DataProtectionProvider = DataProtectionProvider.Create(dataProtectionPath);
-				options.Lockout.AllowedForNewUsers = true;
-			});
+			// services.Configure<IdentityOptions>(options =>
+			// {
+			// 	var dataProtectionPath = Path.Combine(_env.WebRootPath, "identity-artifacts");
+			// 	options.Cookies.ApplicationCookie.AuthenticationScheme = "ApplicationCookie";
+			// 	options.Cookies.ApplicationCookie.DataProtectionProvider = DataProtectionProvider.Create(dataProtectionPath);
+			// 	options.Lockout.AllowedForNewUsers = true;
+			// });
+
 
 			// Services used by identity
-			services.AddAuthentication(options =>
-			{
+			services.AddAuthentication(//options =>
+			//{
 				// This is the Default value for ExternalCookieAuthenticationScheme
-				options.SignInScheme = new IdentityCookieOptions().ExternalCookieAuthenticationScheme;
+			//	options.SignInScheme = new IdentityCookieOptions().ExternalCookieAuthenticationScheme;
+			//}
+			)
+			.AddFacebook(options => {
+				options.AppId = "901611409868059";
+				options.AppSecret = "4aa3c530297b1dcebc8860334b39668b";
+			})
+			.AddGoogle(options =>
+			{
+				options.ClientId = "609695036148-vacck6ur8cf5sk0uv145pa962qfsdk6c.apps.googleusercontent.com";
+				options.ClientSecret = "VqJhjh9w_tvSahjzeOkWzv3n";
+			})
+			.AddTwitter(options =>
+			{
+				options.ConsumerKey = "BSdJJ0CrDuvEhpkchnukXZBUv";
+				options.ConsumerSecret = "xKUNuKhsRdHD03eLn67xhPAyE1wFFEndFo1X2UJaK2m1jdAxf4";
 			});
-
+;
 			// Hosting doesn't add IHttpContextAccessor by default
 			services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
 			services.AddOptions();
 			services.AddDataProtection();
 
-			services.TryAddSingleton<IdentityMarkerService>();
+			//services.TryAddSingleton<IdentityMarkerService>();
 			services.TryAddSingleton<IUserValidator<DynamoIdentityUser>, UserValidator<DynamoIdentityUser>>();
 			services.TryAddSingleton<IPasswordValidator<DynamoIdentityUser>, PasswordValidator<DynamoIdentityUser>>();
 			services.TryAddSingleton<IPasswordHasher<DynamoIdentityUser>, PasswordHasher<DynamoIdentityUser>>();
@@ -122,25 +125,6 @@ namespace IdentitySample
 				app.UseExceptionHandler("/Home/Error");
 			}
 			app.UseStaticFiles();
-
-			// To configure external authentication please see http://go.microsoft.com/fwlink/?LinkID=532715
-
-			app.UseIdentity()
-				.UseFacebookAuthentication(new FacebookOptions
-				{
-					AppId = "901611409868059",
-					AppSecret = "4aa3c530297b1dcebc8860334b39668b"
-				})
-				.UseGoogleAuthentication(new GoogleOptions
-				{
-					ClientId = "609695036148-vacck6ur8cf5sk0uv145pa962qfsdk6c.apps.googleusercontent.com",
-					ClientSecret = "VqJhjh9w_tvSahjzeOkWzv3n"
-				})
-				.UseTwitterAuthentication(new TwitterOptions
-				{
-					ConsumerKey = "BSdJJ0CrDuvEhpkchnukXZBUv",
-					ConsumerSecret = "xKUNuKhsRdHD03eLn67xhPAyE1wFFEndFo1X2UJaK2m1jdAxf4"
-				});
 
 			app.UseMvc(routes =>
 			{
@@ -223,9 +207,7 @@ namespace IdentitySample
 
 				var userId = await UserManager.GetUserIdAsync(user);
 				var userName = await UserManager.GetUserNameAsync(user);
-				var id = new ClaimsIdentity(Options.Cookies.ApplicationCookieAuthenticationScheme,
-					Options.ClaimsIdentity.UserNameClaimType,
-					Options.ClaimsIdentity.RoleClaimType);
+				var id = new ClaimsIdentity();
 				id.AddClaim(new Claim(Options.ClaimsIdentity.UserIdClaimType, userId));
 				id.AddClaim(new Claim(Options.ClaimsIdentity.UserNameClaimType, userName));
 				if (UserManager.SupportsUserSecurityStamp)
