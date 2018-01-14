@@ -33,9 +33,11 @@ before_install:
 
 install:
   - npm install semver -g
+  - export DOTNET_105_INSTALL_DIR="$PWD/.dotnetcli.v1.0.5"
+  - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "1.0.5" --install-dir "$DOTNET_105_INSTALL_DIR"
   - export DOTNET_INSTALL_DIR="$PWD/.dotnetcli"
   - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "$CLI_VERSION" --install-dir "$DOTNET_INSTALL_DIR"
-  - export PATH="$DOTNET_INSTALL_DIR:$PATH"
+  - export PATH="$DOTNET_INSTALL_DIR:$DOTNET_105_INSTALL_DIR:$PATH"
 
 before_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then docker pull dwmkerr/dynamodb; fi

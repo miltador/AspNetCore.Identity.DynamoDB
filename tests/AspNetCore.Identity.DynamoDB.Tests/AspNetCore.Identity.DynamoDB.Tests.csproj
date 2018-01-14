@@ -8,6 +8,10 @@
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp1.0'">
+    <RuntimeFrameworkVersion>1.0.5</RuntimeFrameworkVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\AspNetCore.Identity.DynamoDB\AspNetCore.Identity.DynamoDB.csproj" />
   </ItemGroup>
