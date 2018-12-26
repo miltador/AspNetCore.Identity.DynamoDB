@@ -48,6 +48,11 @@ namespace AspNetCore.Identity.DynamoDB
 
 			UserName = userName;
 			NormalizedUserName = userName.ToUpper();
+			InitNew();
+		}
+
+		public void InitNew()
+		{
 			Id = Guid.NewGuid().ToString();
 			CreatedOn = DateTimeOffset.Now;
 		}

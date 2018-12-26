@@ -3,8 +3,8 @@
   <PropertyGroup>
     <Description>DynamoDB data store adaptor for ASP.NET Core Identity</Description>
     <VersionPrefix>0.0.0</VersionPrefix>
-    <Authors>Tugberk Ugurlu;Vasiliy Solovey</Authors>
-    <TargetFrameworks>netstandard1.6;netstandard2.0</TargetFrameworks>
+    <Authors>Tugberk Ugurlu;Vasiliy Solovey;Partho Sarathi</Authors>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <DebugType>portable</DebugType>
     <AssemblyName>AspNetCore.Identity.DynamoDB</AssemblyName>
     <PackageId>AspNetCore.Identity.DynamoDB</PackageId>
