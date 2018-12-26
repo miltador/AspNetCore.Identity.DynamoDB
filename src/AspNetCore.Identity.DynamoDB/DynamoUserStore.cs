@@ -358,6 +358,8 @@ namespace AspNetCore.Identity.DynamoDB
 				throw new ArgumentNullException(nameof(user));
 			}
 
+			user.InitNew();
+
 			cancellationToken.ThrowIfCancellationRequested();
 
 			await _context.SaveAsync(user, cancellationToken);
@@ -470,7 +472,8 @@ namespace AspNetCore.Identity.DynamoDB
 
 		public Task SetUserNameAsync(TUser user, string userName, CancellationToken cancellationToken)
 		{
-			throw new NotSupportedException("Changing the username is not supported.");
+			user.UserName = userName;
+			return Task.FromResult(0);
 		}
 
 		public async Task<IdentityResult> UpdateAsync(TUser user, CancellationToken cancellationToken)
@@ -818,7 +821,7 @@ namespace AspNetCore.Identity.DynamoDB
 					}
 				}
 			};
-			
+
 			var tableNames = await client.ListAllTablesAsync();
 
 			if (!tableNames.Contains(userTableName))
