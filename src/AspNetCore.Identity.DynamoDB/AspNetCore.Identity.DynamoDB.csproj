@@ -16,14 +16,7 @@
     <Copyright>(c) 2017 Vasiliy Solovey</Copyright>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
-    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="1.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="1.0.1" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.3.3" />
-    <PackageReference Update="NETStandard.Library" Version="1.6.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.3.3" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="2.0.1" />

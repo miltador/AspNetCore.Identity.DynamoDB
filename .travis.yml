@@ -19,7 +19,7 @@ matrix:
 
 env:
   global:
-  - CLI_VERSION=2.1.1
+  - CLI_VERSION=2.0.0
   - COMMIT=${TRAVIS_COMMIT::8}
   - AWS_ACCESS_KEY_ID=MOCK_ID
   - AWS_SECRET_ACCESS_KEY=MOCK_SECRET_KEY
@@ -34,7 +34,7 @@ before_install:
 install:
   - npm install semver -g
   - export DOTNET_INSTALL_DIR="$PWD/.dotnetcli"
-  - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "1.0.4" --install-dir "$DOTNET_INSTALL_DIR"
+  - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "2.0.0" --install-dir "$DOTNET_INSTALL_DIR"
   - curl -sSL https://raw.githubusercontent.com/dotnet/cli/master/scripts/obtain/dotnet-install.sh | bash /dev/stdin --version "$CLI_VERSION" --install-dir "$DOTNET_INSTALL_DIR"
   - export PATH="$DOTNET_INSTALL_DIR:$DOTNET_105_INSTALL_DIR:$PATH"
 
